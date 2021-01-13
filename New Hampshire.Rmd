@@ -1,0 +1,2244 @@
+---
+title: "Indicators For New Hampshire"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  html_notebook:
+    toc: yes
+    toc_depth: 3
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '3'
+---
+
+In this report, 30 demographic, educational institutions, employment, municipal finances, food insecurity and housing variables are presented using federally-published data sources for New Hampshire state. To better demonstrate their ties to geography of the state, the variables have been mapped on the block group level. \
+
+
+## Demographic
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+                                 #######################################################
+                                 #       Municipal Indicators For Municipalities        #               
+                                 #######################################################
+library(stringr)
+library(tidycensus)
+library(tidyverse)
+library(tigris)
+library(totalcensus)
+
+options(tigris_class = "sf",tigris_use_cache = T)
+# Get API key 
+# census_api_key("045944708d514a404443c9f2d227ac8bf6a8f8bd", install = TRUE, overwrite=TRUE)
+# Specify the end year 
+# This is for 5-year estimates
+endyr <- 2018
+# List of ACS variables
+Var_List <- tidycensus::load_variables(year = endyr, dataset = "acs5", cache = T)
+# View(Var_List)
+```
+
+
+\
+
+
+### Population  Size
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+                                             #--------------------#
+                                             #    DEMOGRAPHIC     #
+                                             #--------------------#
+
+##############################################    Population  Size    ###########################################################
+i <- "NH"
+# Population of the state at Block Group level
+Pop.BG <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=i,
+													 year = endyr,
+													 output = "wide",
+													 variables = "B01003_001", # Total Population
+													 keep_geo_vars = T) %>%
+  rename(BG_ID_10 = GEOID,
+				 TotalPop_BG = B01003_001E) %>% # B01003_001M is the marginal error
+	select(BG_ID_10, NAME, TotalPop_BG)
+
+# Total population of the State
+Pop.State <- tidycensus::get_acs(geography = "state",
+													 survey="acs5",
+													 state=i,
+													 year = endyr,
+													 output = "wide",
+													 variables = "B01003_001", # Total Population
+													 keep_geo_vars = T) %>%
+  select("NAME", "B01003_001E") %>%
+  rename(State = NAME,
+         TotalPop_State = B01003_001E) %>% 
+  cbind(Pop.BG)
+
+# The Each_State dataframe, which contains info for each state at state level and block group level
+Each_State6 <- Pop.State
+```
+
+
+The total population of `r Each_State6$State[1]` is 1343622. Followed is the popuation size map of the state.\
+\
+
+```{r , echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+## MAP
+Pop.BG.NH <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=i,
+													 year = endyr,
+													 output = "wide",
+													 variables = "B01003_001", # Total Population
+													 keep_geo_vars = T,geometry = TRUE) %>%
+  rename(BG_ID_10 = GEOID,
+				 TotalPop_BG = B01003_001E) %>% # B01003_001M is the marginal error
+	select(BG_ID_10, NAME.y, TotalPop_BG)
+
+library(tmap)
+tm_shape(Pop.BG.NH) + tm_polygons('TotalPop_BG' , palette="seq", style = "jenks", title = "Total Population")  + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tm_layout(legend.position = c("left","top"))
+```
+\
+
+
+### Population Age
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##############################################    Population  Age   #############################################################
+Age.BG <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=i,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_003","B01001_004","B01001_005","B01001_006",
+													 							"B01001_027","B01001_028","B01001_029","B01001_030", # Under 5 years; Between 5 to 17
+													 							"B01001_007","B01001_008","B01001_009",
+													 							"B01001_010","B01001_011","B01001_012",
+													 							"B01001_036","B01001_035","B01001_034",
+													 							"B01001_033","B01001_032","B01001_031", # 18 to 24 years; 25 to 34 years
+													 							"B01001_013","B01001_014","B01001_015",
+													 							"B01001_016","B01001_017","B01001_018","B01001_019",
+													 							"B01001_043","B01001_042","B01001_041","B01001_040",
+													 							"B01001_039","B01001_038","B01001_037", # 35 to 44 years; 45 to 54 years; 55 to 59 years; 60 to 64 years
+													 							"B01001_020","B01001_021","B01001_022",
+													 							"B01001_023","B01001_024","B01001_025",
+													 							"B01001_044","B01001_045","B01001_046",
+													 							"B01001_047","B01001_048","B01001_049"), # 65 to 74 years; 75 years and older
+													 keep_geo_vars = T) %>% 
+	mutate( # combine variables to make aggregate categories:
+		AgeU18 = B01001_003E+B01001_004E+B01001_005E+B01001_006E+B01001_027E+B01001_028E+B01001_029E+B01001_030E, 
+				 Age1834 = B01001_007E+B01001_008E+B01001_009E+B01001_010E+B01001_011E+B01001_012E+B01001_036E+B01001_035E+B01001_034E+B01001_033E+B01001_032E+B01001_031E,
+				 Age3564 = B01001_013E+B01001_014E+B01001_015E+B01001_016E+B01001_017E+B01001_018E+B01001_019E+B01001_043E+B01001_042E+B01001_041E+B01001_040E+B01001_039E+B01001_038E+B01001_037E,
+				 AgeO65 = B01001_020E+B01001_021E+B01001_022E+B01001_023E+B01001_024E+B01001_025E+B01001_044E+B01001_045E+B01001_046E+B01001_047E+B01001_048E+B01001_049E) %>%
+  rename(BG_ID_10 = GEOID) %>%
+  select(BG_ID_10, AgeU18, Age1834, Age3564, AgeO65) %>%
+  rename(AgeU18_BG = AgeU18,
+				 Age1834_BG = Age1834,
+				 Age3564_BG = Age3564,
+				 AgeO65_BG = AgeO65) %>%
+  select(BG_ID_10, AgeU18_BG, Age1834_BG, Age3564_BG, AgeO65_BG) %>%
+  left_join(Each_State6, by="BG_ID_10") %>%
+	mutate(AgeU18Per_BG = AgeU18_BG/TotalPop_BG,
+				 Age1834Per_BG = Age1834_BG/TotalPop_BG,
+				 Age3564Per_BG = Age3564_BG/TotalPop_BG,
+				 AgeO65Per_BG = AgeO65_BG/TotalPop_BG)
+
+# Population age at state level
+Age.State <- tidycensus::get_acs(geography = "state",
+													 survey="acs5",
+													 state=i,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_003","B01001_004","B01001_005","B01001_006",
+													 							"B01001_027","B01001_028","B01001_029","B01001_030", # Under 5 years; Between 5 to 17
+													 							"B01001_007","B01001_008","B01001_009",
+													 							"B01001_010","B01001_011","B01001_012",
+													 							"B01001_036","B01001_035","B01001_034",
+													 							"B01001_033","B01001_032","B01001_031", # 18 to 24 years; 25 to 34 years
+													 							"B01001_013","B01001_014","B01001_015",
+													 							"B01001_016","B01001_017","B01001_018","B01001_019",
+													 							"B01001_043","B01001_042","B01001_041","B01001_040",
+													 							"B01001_039","B01001_038","B01001_037", # 35 to 44 years; 45 to 54 years; 55 to 59 years; 60 to 64 years
+													 							"B01001_020","B01001_021","B01001_022",
+													 							"B01001_023","B01001_024","B01001_025",
+													 							"B01001_044","B01001_045","B01001_046",
+													 							"B01001_047","B01001_048","B01001_049"), # 65 to 74 years; 75 years and older
+													 keep_geo_vars = T) %>% 
+	mutate( # combine variables to make aggregate categories:
+		AgeU18_State = B01001_003E+B01001_004E+B01001_005E+B01001_006E+B01001_027E+B01001_028E+B01001_029E+B01001_030E, 
+				 Age1834_State = B01001_007E+B01001_008E+B01001_009E+B01001_010E+B01001_011E+B01001_012E+B01001_036E+B01001_035E+B01001_034E+B01001_033E+B01001_032E+B01001_031E,
+				 Age3564_State = B01001_013E+B01001_014E+B01001_015E+B01001_016E+B01001_017E+B01001_018E+B01001_019E+B01001_043E+B01001_042E+B01001_041E+B01001_040E+B01001_039E+B01001_038E+B01001_037E,
+				 AgeO65_State = B01001_020E+B01001_021E+B01001_022E+B01001_023E+B01001_024E+B01001_025E+B01001_044E+B01001_045E+B01001_046E+B01001_047E+B01001_048E+B01001_049E) %>%
+  select(AgeU18_State,Age1834_State,Age3564_State,AgeO65_State) %>%
+  cbind(Age.BG) %>%
+  mutate(AgeU18Per_State = AgeU18_State/TotalPop_State,
+				 Age1834Per_State = Age1834_State/TotalPop_State,
+				 Age3564Per_State = Age3564_State/TotalPop_State,
+				 AgeO65Per_State = AgeO65_State/TotalPop_State)
+
+Each_State6 <- Age.State
+```
+* The number of people, who are younger than 18 Years old is 262563 in `r Each_State6$State[1]` 
+, which is `r (round(Each_State6$AgeU18Per_State[1],2))*100`% of total population in `r Each_State6$State[1]`. \
+* The number of people, who are between 18 and 34 years old is 290485 in `r Each_State6$State[1]`, which is `r (round(Each_State6$Age1834Per_State[1],2))*100`% of total population in `r Each_State6$State[1]`.\
+* The number of people, who are between 35 and 64 years old is 562590 in `r Each_State6$State[1]`, which is `r (round(Each_State6$Age3564Per_State[1],2))*100`% of total population in `r Each_State6$State[1]`.\
+* The number of people, who are older than 65 years old is 227984 in `r Each_State6$State[1]`, which is `r (round(Each_State6$AgeO65Per_State[1],2))*100`% of total population in `r Each_State6$State[1]`.\
+
+Followed is the popuation age map of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## Map
+Age.BG.NH <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=i,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_003","B01001_004","B01001_005","B01001_006",
+													 							"B01001_027","B01001_028","B01001_029","B01001_030", # Under 5 years; Between 5 to 17
+													 							"B01001_007","B01001_008","B01001_009",
+													 							"B01001_010","B01001_011","B01001_012",
+													 							"B01001_036","B01001_035","B01001_034",
+													 							"B01001_033","B01001_032","B01001_031", # 18 to 24 years; 25 to 34 years
+													 							"B01001_013","B01001_014","B01001_015",
+													 							"B01001_016","B01001_017","B01001_018","B01001_019",
+													 							"B01001_043","B01001_042","B01001_041","B01001_040",
+													 							"B01001_039","B01001_038","B01001_037", # 35 to 44 years; 45 to 54 years; 55 to 59 years; 60 to 64 years
+													 							"B01001_020","B01001_021","B01001_022",
+													 							"B01001_023","B01001_024","B01001_025",
+													 							"B01001_044","B01001_045","B01001_046",
+													 							"B01001_047","B01001_048","B01001_049","B01003_001"), geometry = TRUE, # 65 to 74 years; 75 years and older
+													 keep_geo_vars = T) %>% 
+	mutate( # combine variables to make aggregate categories:
+		AgeU18 = B01001_003E+B01001_004E+B01001_005E+B01001_006E+B01001_027E+B01001_028E+B01001_029E+B01001_030E, 
+				 Age1834 = B01001_007E+B01001_008E+B01001_009E+B01001_010E+B01001_011E+B01001_012E+B01001_036E+B01001_035E+B01001_034E+B01001_033E+B01001_032E+B01001_031E,
+				 Age3564 = B01001_013E+B01001_014E+B01001_015E+B01001_016E+B01001_017E+B01001_018E+B01001_019E+B01001_043E+B01001_042E+B01001_041E+B01001_040E+B01001_039E+B01001_038E+B01001_037E,
+				 AgeO65 = B01001_020E+B01001_021E+B01001_022E+B01001_023E+B01001_024E+B01001_025E+B01001_044E+B01001_045E+B01001_046E+B01001_047E+B01001_048E+B01001_049E) %>%
+  rename(BG_ID_10 = GEOID,
+         AgeU18_BG = AgeU18,
+				 Age1834_BG = Age1834,
+				 Age3564_BG = Age3564,
+				 AgeO65_BG = AgeO65) %>%
+	mutate(AgeU18Per_BG = ((AgeU18_BG/B01003_001E)*100),
+				 Age1834Per_BG = ((Age1834_BG/B01003_001E)*100),
+				 Age3564Per_BG = ((Age3564_BG/B01003_001E)*100),
+				 AgeO65Per_BG = ((AgeO65_BG/B01003_001E)*100)) %>%
+  select(BG_ID_10, AgeU18_BG, Age1834_BG, Age3564_BG, AgeO65_BG,
+         AgeU18Per_BG, Age1834Per_BG, Age3564Per_BG, AgeO65Per_BG)
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+ 
+library(tmap)
+tm_shape(Age.BG.NH) + tm_polygons(c('AgeU18Per_BG','Age1834Per_BG',"Age3564Per_BG","AgeO65Per_BG") , palette=list("Oranges", "Greens", "Blues", "Purples") ,style = "quantile", title = c('AgeU18','Age1834',"Age3564","AgeO65"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent))  + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+
+```
+\
+
+### Median Household Income
+\
+
+```{r  echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#################################################    Median Household Income    ##############################################################
+Income.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = "B19013_001", # Median Household Income in the Past 12 Months 
+														keep_geo_vars = T) %>% 
+  rename(MedHouseIncome_BG = B19013_001E,
+         BG_ID_10 = GEOID) %>%
+	select(BG_ID_10, MedHouseIncome_BG) %>%
+  left_join(Each_State6, by="BG_ID_10")
+
+# Median household income at State level
+Income.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = "B19013_001", # Median Household Income in the Past 12 Months 
+														keep_geo_vars = T) %>% 
+  rename(MedHouseIncome_State = B19013_001E) %>%
+  select(MedHouseIncome_State) %>%
+  cbind(Income.BG)
+
+Each_State6 <- Income.State
+```
+* The median household income in the past 12 months is 74057 Dollar in `r Each_State6$State[1]`.\
+Followed is the Median Household Income map of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## MAP
+Income.BG.NH <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = "B19013_001", # Median Household Income in the Past 12 Months 
+														keep_geo_vars = T, geometry = T) %>% 
+  rename(MedHouseIncome_BG = B19013_001E,
+         BG_ID_10 = GEOID) %>%
+	select(BG_ID_10, MedHouseIncome_BG)
+
+
+make_dollar <- function(x, digits = 0) {
+  paste0("$", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+library(tmap)
+tm_shape(Income.BG.NH) + tm_polygons('MedHouseIncome_BG' , palette="Blues", style="jenks", title = "Median Household Income", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar))  + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+```
+
+\
+
+### Racial Breakdown 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##############################################      Racial Breakdown     ###################################################################
+Race.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B03002_003", # white alone
+																					"B03002_004", # black or African American alone
+																					"B03002_006", # Asian alone
+																					"B03002_012", # Hispanic or Latino alone
+																					"B03002_009"), # Two or more races
+														keep_geo_vars = T) %>%
+  rename(White_BG = B03002_003E,
+				 Black_BG = B03002_004E,
+				 Asian_BG = B03002_006E,
+				 Hispanic_BG = B03002_012E,
+				 TwoOrMore_BG = B03002_009E,
+				 BG_ID_10 = GEOID) %>%
+  select(BG_ID_10, White_BG, Black_BG, Asian_BG, Hispanic_BG, TwoOrMore_BG) %>%
+  left_join(Each_State6, Race.BG, by="BG_ID_10") %>%
+  mutate(WhitePer_BG = White_BG/TotalPop_BG,
+         BlackPer_BG = Black_BG/TotalPop_BG,
+         AsianPer_BG = Asian_BG/TotalPop_BG,
+         HispanicPer_BG = Hispanic_BG/TotalPop_BG,
+         TwoOrMorePer_BG = TwoOrMore_BG/TotalPop_BG)
+
+# Racial Breakdown at State level
+Race.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B03002_003", # white alone
+																					"B03002_004", # black or African American alone
+																					"B03002_006", # Asian alone
+																					"B03002_012", # Hispanic or Latino alone
+																					"B03002_009"), # Two or more races
+														keep_geo_vars = T) %>%
+  rename(White_State = B03002_003E,
+				 Black_State = B03002_004E,
+				 Asian_State = B03002_006E,
+				 Hispanic_State = B03002_012E,
+				 TwoOrMore_State = B03002_009E) %>%
+  select(White_State, Black_State, Asian_State, Hispanic_State, TwoOrMore_State) %>%
+  cbind(Race.BG) %>%
+  mutate(WhitePer_State = White_State/TotalPop_State,
+				 BlackPer_State = Black_State/TotalPop_State,
+				 AsianPer_State = Asian_State/TotalPop_State,
+				 HispanicPer_State = Hispanic_State/TotalPop_State,
+				 TwoOrMorePer_State = TwoOrMore_State/TotalPop_State)
+
+Each_State6 <- Race.State
+```
+* The number of people who are white in `r Each_State6$State[1]` is 1214547 which is `r (round(Each_State6$WhitePer_State[1],2))*100`% of total population in `r Each_State6$State[1]`.\
+* The number of people who are black in `r Each_State6$State[1]` is 17622 which is `r (round(Each_State6$BlackPer_State[1],2))*100`% of total population in `r Each_State6$State[1]`.\
+* The number of people who are asian in `r Each_State6$State[1]` is 35848 which is `r (round(Each_State6$AsianPer_State[1],2))*100`% of total population in `r Each_State6$State[1]`.\
+* The number of people who are hispanic in `r Each_State6$State[1]` is 48356 which is `r (round(Each_State6$HispanicPer_State[1],2))*100`% of total population in `r Each_State6$State[1]`.\
+* The number of people who are have two or more races in `r Each_State6$State[1]` is 23818 which is `r (round(Each_State6$TwoOrMorePer_State[1],2))*100`% of total population in `r Each_State6$State[1]`. \
+Followed is the Racial Breakdown map of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## Map
+Race.BG.NH <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B03002_003", # white alone
+																					"B03002_004", # black or African American alone
+																					"B03002_006", # Asian alone
+																					"B03002_012", # Hispanic or Latino alone
+																					"B03002_009",
+																					"B01003_001"), # Two or more races
+														keep_geo_vars = T, geometry = T) %>%
+
+rename(BG_ID_10 = GEOID,
+       White_BG = B03002_003E,
+				 Black_BG = B03002_004E,
+				 Asian_BG = B03002_006E,
+				 Hispanic_BG = B03002_012E,
+				 TwoOrMore_BG = B03002_009E) %>%
+  mutate(WhitePer_BG = (White_BG/B01003_001E)*100,
+         BlackPer_BG = (Black_BG/B01003_001E)*100,
+         AsianPer_BG = (Asian_BG/B01003_001E)*100,
+         HispanicPer_BG = (Hispanic_BG/B01003_001E)*100,
+         TwoOrMorePer_BG = (TwoOrMore_BG/B01003_001E)*100)  %>%
+ select(BG_ID_10, White_BG, Black_BG, Asian_BG, Hispanic_BG, TwoOrMore_BG,
+        WhitePer_BG, BlackPer_BG, AsianPer_BG, HispanicPer_BG, TwoOrMorePer_BG) 
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+ 
+library(tmap)
+tm_shape(Race.BG.NH) + tm_polygons(c("WhitePer_BG", "BlackPer_BG", "AsianPer_BG", "HispanicPer_BG", "TwoOrMorePer_BG") , palette=list("Oranges", "Greens", "Blues", "Purples", "Reds"), style = "quantile", title = c("White", "Black", "Asian","Hispanic", "TwoOrMore"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent))  + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+
+### Gender Breakdown
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#####################################################    Gender Breakdown    #############################################################
+Sex.BG <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=i,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_026", # Sex by Age - Female
+													               "B01001_002"), # Sex by Age- Male
+													 keep_geo_vars = T) %>%
+  mutate(SexRatio_BG = B01001_026E/B01001_002E) %>%
+  rename(Female_BG = B01001_026E,
+				 Male_BG = B01001_002E,
+				 BG_ID_10 = GEOID) %>%
+	select(BG_ID_10, Female_BG, Male_BG, SexRatio_BG) %>%
+  left_join(Each_State6, Sex.BG, by="BG_ID_10") %>%
+  mutate(FemalePer_BG = Female_BG/TotalPop_BG,
+         MalePer_BG = Male_BG/TotalPop_BG)
+
+# Gender at State level
+Sex.State <- tidycensus::get_acs(geography = "state",
+													 survey="acs5",
+													 state=i,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_026", # Sex by Age - Female
+													               "B01001_002"), # Sex by Age- Male
+													 keep_geo_vars = T) %>% 
+  mutate(SexRatio_State = B01001_026E/B01001_002E) %>%
+  rename(Female_State = B01001_026E,
+				 Male_State = B01001_002E) %>%
+	select(Female_State, Male_State, SexRatio_State) %>%
+  cbind(Sex.BG) %>%
+  mutate(FemalePer_State = Female_State/TotalPop_State,
+				 MalePer_State = Male_State/TotalPop_State)
+
+Each_State6 <- Sex.State
+```
+* The number of females in `r Each_State6$State[1]` is 678639 which is `r 100*(round(Each_State6$FemalePer_State[1],2))`% of total population in `r Each_State6$State[1]`.\
+* The number of males in `r Each_State6$State[1]` is 664983 which is `r 100*(round(Each_State6$MalePer_State[1],2))`% of total population in `r Each_State6$State[1]`.\
+* The ratio of number of females to males in `r Each_State6$State[1]` is `r round(Each_State6$SexRatio_State[1],2)`.\
+Followed is the Gender Breakdown map of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+Sex.BG.NH <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=i,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_026", # Sex by Age - Female
+													               "B01001_002",
+													               "B01003_001"), # Sex by Age- Male
+													 keep_geo_vars = T,geometry = TRUE) %>%
+mutate(SexRatio = B01001_026E/B01001_002E) %>%
+  rename(Female = B01001_026E,
+				 Male = B01001_002E,
+				 BG_ID_10 = GEOID) %>%
+  mutate(FemalePer = Female/B01003_001E,
+         MalePer = Male/B01003_001E) %>%
+  select(SexRatio, BG_ID_10, Male, Female, FemalePer, MalePer)
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+library(tmap)
+tm_shape(Sex.BG.NH) + tm_polygons(c('FemalePer', 'MalePer'), palette=list("Blues", "Oranges"), title = c("Female","Male"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent))  + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray")+ tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+library(tmap)
+tm_shape(Sex.BG.NH) + tm_polygons(c('Female', 'Male'), palette=list("Purples", "Reds"), title = c("Female","Male"))  + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray")+ tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+```
+\
+
+### Average Household Size
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#################################################    Average Household Size    ############################################################
+
+HH.size.BG <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state=i,
+															year = endyr,
+															output = "wide",
+															variables = c("B11002_001", # Household type by relatives and nonrelatives for population in households
+															              "B19001_001"), # Household income in the pas 12 months
+															keep_geo_vars = T) %>%
+  rename(BG_ID_10 = GEOID) %>%
+  mutate(AveHouseH_BG = B11002_001E/B19001_001E) %>%
+	select(BG_ID_10, AveHouseH_BG) %>%
+  left_join(Each_State6, HH.size.BG, by="BG_ID_10")
+
+# Average household size at State level
+HH.size.State <- tidycensus::get_acs(geography = "state",
+															survey="acs5",
+															state=i,
+															year = endyr,
+															output = "wide",
+															variables = c("B11002_001", # Household type by relatives and nonrelatives for population in households
+															              "B19001_001"), # Household income in the pas 12 months
+															keep_geo_vars = T) %>%
+  mutate(AveHouseH_State = B11002_001E/B19001_001E) %>%
+	select(AveHouseH_State) %>%
+  cbind(HH.size.BG) 
+
+Each_State6 <- HH.size.State
+```
+* The average household size is `r round(Each_State6$AveHouseH_State[1], 2)` in `r Each_State6$State[1]`.\
+Followed is the Average Household Size map of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+HH.size.BG.NH <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state=i,
+															year = endyr,
+															output = "wide",
+															variables = c("B11002_001", # Household type by relatives and nonrelatives for population in households
+															              "B19001_001"), # Household income in the pas 12 months
+															keep_geo_vars = T, geometry = T) %>%
+  rename(BG_ID_10 = GEOID) %>%
+  mutate(AveHouseH_BG = B11002_001E/B19001_001E) %>%
+	select(BG_ID_10, AveHouseH_BG)
+
+
+tm_shape(HH.size.BG.NH) + tm_polygons("AveHouseH_BG", style = "quantile", palette="Purples", border.col = "darkgray", title="Ave Household Size") + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+### Educational Attainment
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################   Educational Attainment    ##################################################################
+Educ.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B15002_001", # variables for Sex by Edu Attainment for Population 25 yrs or Over
+																					"B15002_003","B15002_004","B15002_005",
+																					"B15002_006","B15002_007","B15002_008","B15002_009","B15002_010",
+																					"B15002_020","B15002_021","B15002_022","B15002_023","B15002_024",
+																					"B15002_025","B15002_026","B15002_027",
+																					"B15002_011","B15002_028",
+																					"B15002_012","B15002_013","B15002_014",
+																					"B15002_029","B15002_030","B15002_031",
+																					"B15002_015","B15002_032",
+																					"B15002_016","B15002_033",
+																					"B15002_017","B15002_034",
+																					"B15002_018","B15002_035"),keep_geo_vars = T) %>%
+  rename(BG_ID_10 = GEOID) %>%
+  mutate(LessThanHS_BG = (B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E),
+				 HSGrad_BG = (B15002_011E + B15002_028E),
+				 SomeColl_BG = (B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E),
+				 Bach_BG = (B15002_015E + B15002_032E),
+				 Master_BG = (B15002_016E + B15002_033E),
+				 Prof_BG = (B15002_017E + B15002_034E),
+				 Doc_BG = (B15002_018E + B15002_035E),
+		    LessThanHSPer_BG = (B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E)/B15002_001E,
+				 HSGradPer_BG = (B15002_011E + B15002_028E)/B15002_001E,
+				 SomeCollPer_BG = (B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E)/B15002_001E,
+				 BachPer_BG = (B15002_015E + B15002_032E)/B15002_001E,
+				 MasterPer_BG = (B15002_016E + B15002_033E)/B15002_001E,
+				 ProfPer_BG = (B15002_017E + B15002_034E)/B15002_001E,
+				 DocPer_BG = (B15002_018E + B15002_035E)/B15002_001E) %>%
+	select(BG_ID_10, LessThanHS_BG, HSGrad_BG, SomeColl_BG, Bach_BG, Master_BG, Prof_BG, Doc_BG,
+	       LessThanHSPer_BG, HSGradPer_BG, SomeCollPer_BG, BachPer_BG, MasterPer_BG, ProfPer_BG, DocPer_BG) %>%
+  left_join(Each_State6, Educ.BG, by="BG_ID_10")
+
+# Educational Attainment at State level
+Educ.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B15002_001", # variables for Sex by Edu Attainment for Population 25 yrs or Over
+																					"B15002_003","B15002_004","B15002_005",
+																					"B15002_006","B15002_007","B15002_008","B15002_009","B15002_010",
+																					"B15002_020","B15002_021","B15002_022","B15002_023","B15002_024",
+																					"B15002_025","B15002_026","B15002_027",
+																					"B15002_011","B15002_028",
+																					"B15002_012","B15002_013","B15002_014",
+																					"B15002_029","B15002_030","B15002_031",
+																					"B15002_015","B15002_032",
+																					"B15002_016","B15002_033",
+																					"B15002_017","B15002_034",
+																					"B15002_018","B15002_035"),keep_geo_vars = T) %>%
+  mutate(LessThanHS_State = (B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E),
+				 HSGrad_State = (B15002_011E + B15002_028E),
+				 SomeColl_State = (B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E),
+				 Bach_State = (B15002_015E + B15002_032E),
+				 Master_State = (B15002_016E + B15002_033E),
+				 Prof_State = (B15002_017E + B15002_034E),
+				 Doc_State = (B15002_018E + B15002_035E),
+		    LessThanHSPer_State = (B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E)/B15002_001E,
+				 HSGradPer_State = (B15002_011E + B15002_028E)/B15002_001E,
+				 SomeCollPer_State = (B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E)/B15002_001E,
+				 BachPer_State = (B15002_015E + B15002_032E)/B15002_001E,
+				 MasterPer_State = (B15002_016E + B15002_033E)/B15002_001E,
+				 ProfPer_State = (B15002_017E + B15002_034E)/B15002_001E,
+				 DocPer_State = (B15002_018E + B15002_035E)/B15002_001E) %>%
+	select(LessThanHS_State, HSGrad_State, SomeColl_State, Bach_State, Master_State, Prof_State, Doc_State,
+	       LessThanHSPer_State, HSGradPer_State, SomeCollPer_State, BachPer_State, MasterPer_State, ProfPer_State, DocPer_State) %>%
+  cbind(Educ.BG) 
+
+Each_State6 <- Educ.State
+```
+* The number of people, who have less than high school degree is 67607 in `r Each_State6$State[1]` which is `r (round(Each_State6$LessThanHSPer_State[1],2))*100`% of the population who are 25 years old or older in `r Each_State6$State[1]`.\
+
+* The number of people, who have high school degree is 263005 in `r Each_State6$State[1]` which is `r (round(Each_State6$HSGradPer_State[1],2))*100`% of the population who are 25 years old or older in `r Each_State6$State[1]`.\
+
+* The number of people, who have some college degree is 274078 in `r Each_State6$State[1]` which is `r (round(Each_State6$SomeCollPer_State[1],2))*100`% of the population who are 25 years old or older in `r Each_State6$State[1]`.\
+
+* The number of people, who have bachelor degree is 213277 in `r Each_State6$State[1]` which is `r (round(Each_State6$BachPer_State[1],2))*100`% of the population who are 25 years old or older in `r Each_State6$State[1]`.\
+
+* The number of people, who have master's degree is 101226 in `r Each_State6$State[1]` which is `r (round(Each_State6$MasterPer_State[1],2))*100`% of the population who are 25 years old or older in `r Each_State6$State[1]`.\
+
+* The number of people, who have professional school degree is 19032 in `r Each_State6$State[1]` which is `r  (round(Each_State6$ProfPer_State[1],2))*100`% of the population who are 25 years old or older in `r Each_State6$State[1]`.\
+
+* The number of people, who have doctorate degree is 13890 in `r Each_State6$State[1]` which is `r (round(Each_State6$DocPer_State[1],2))*100`% of the population who are 25 years old or older in `r Each_State6$State[1]`.\
+Followed is the Educational Attainment map of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+Educ.BG.NH <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B15002_001", # variables for Sex by Edu Attainment for Population 25 yrs or Over
+																					"B15002_003","B15002_004","B15002_005",
+																					"B15002_006","B15002_007","B15002_008","B15002_009","B15002_010",
+																					"B15002_020","B15002_021","B15002_022","B15002_023","B15002_024",
+																					"B15002_025","B15002_026","B15002_027",
+																					"B15002_011","B15002_028",
+																					"B15002_012","B15002_013","B15002_014",
+																					"B15002_029","B15002_030","B15002_031",
+																					"B15002_015","B15002_032",
+																					"B15002_016","B15002_033",
+																					"B15002_017","B15002_034",
+																					"B15002_018","B15002_035","B15002_001"),keep_geo_vars = T, geometry = T) %>%
+  rename(BG_ID_10 = GEOID) %>%
+  mutate(LessThanHS_BG = (B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E),
+				 HSGrad_BG = (B15002_011E + B15002_028E),
+				 SomeColl_BG = (B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E),
+				 Bach_BG = (B15002_015E + B15002_032E),
+				 Master_BG = (B15002_016E + B15002_033E),
+				 Prof_BG = (B15002_017E + B15002_034E),
+				 Doc_BG = (B15002_018E + B15002_035E),
+				 LessThanHSPer_BG = ((B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E)/B15002_001E)*100,
+				 HSGradPer_BG = ((B15002_011E + B15002_028E)/B15002_001E)*100,
+				 SomeCollPer_BG = ((B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E)/B15002_001E)*100,
+				 BachPer_BG = ((B15002_015E + B15002_032E)/B15002_001E)*100,
+				 MasterPer_BG = ((B15002_016E + B15002_033E)/B15002_001E)*100,
+				 ProfPer_BG = ((B15002_017E + B15002_034E)/B15002_001E)*100,
+				 DocPer_BG = ((B15002_018E + B15002_035E)/B15002_001E)*100) %>%
+	select(BG_ID_10, LessThanHS_BG, HSGrad_BG, SomeColl_BG, Bach_BG, Master_BG, Prof_BG, Doc_BG,
+	       LessThanHSPer_BG, HSGradPer_BG, SomeCollPer_BG, BachPer_BG, MasterPer_BG, ProfPer_BG, DocPer_BG) 
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+tm_shape(Educ.BG.NH) +
+    tm_fill(c('LessThanHSPer_BG', 'HSGradPer_BG', 'SomeCollPer_BG', 'BachPer_BG', 'MasterPer_BG', 'ProfPer_BG', 'DocPer_BG'),
+        style="quantile", 
+        palette=list("Oranges", "Greens", "Blues", "Purples", "Reds","Dark2", "seq"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent), title=c('LessThanHS', 'HSGrad', 'SomeColl', 'Bach', 'Master', 'Prof', 'Doc')) + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") + tmap_options(limits = c(facets.view = 7)) + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+### Single Parent Households
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+##########################################      Single Parent Households     ##################################################################
+Single.HH.BG <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state=i,
+															year = endyr,
+															output = "wide",
+															variables = c("B11001_006", # Female Hoseholder, No Husband Present
+																						"B11001_005", # Male Householder, No Wife Present
+																						"B11001_001"), # Total number of households
+															keep_geo_vars = T) %>% 
+  rename(BG_ID_10 = GEOID) %>%
+  mutate(FemHeadPer_BG = B11001_006E/B11001_001E,
+	       MaleHeadPer_BG = B11001_005E/B11001_001E) %>%
+	select(BG_ID_10, FemHeadPer_BG, MaleHeadPer_BG) %>%
+  left_join(Each_State6, Single.HH.BG, by="BG_ID_10")
+
+# Single parent households at State level
+Single.HH.State <- tidycensus::get_acs(geography = "state",
+															survey="acs5",
+															state=i,
+															year = endyr,
+															output = "wide",
+															variables = c("B11001_006", # Female Hoseholder, No Husband Present
+																						"B11001_005", # Male Householder, No Wife Present
+																						"B11001_001"), # Total number of households
+															keep_geo_vars = T) %>% 
+  mutate(FemHeadPer_State = B11001_006E/B11001_001E,
+	       MaleHeadPer_State = B11001_005E/B11001_001E) %>%
+	select(FemHeadPer_State, MaleHeadPer_State) %>%
+  cbind(Single.HH.BG) 
+
+Each_State6 <- Single.HH.State
+
+```
+* The percentage of single-female-headed is `r (round(Each_State6$FemHeadPer_State[1],2))*100`% of total number of family households in `r Each_State6$State[1]`.\
+* The percentage of single-male-headed is `r (round(Each_State6$MaleHeadPer_State[1],2))*100`% of total number of family households in `r Each_State6$State[1]`.\
+Followed is the Single Parent Households map of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+Single.HH.BG.NH <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state=i,
+															year = endyr,
+															output = "wide",
+															variables = c("B11001_006", # Female Hoseholder, No Husband Present
+																						"B11001_005", # Male Householder, No Wife Present
+																						"B11001_001"), # Total number of households
+															keep_geo_vars = T, geometry = T) %>% 
+  rename(BG_ID_10 = GEOID) %>%
+  mutate(FemHeadPer = (B11001_006E/B11001_001E)*100,
+	       MaleHeadPer = (B11001_005E/B11001_001E)*100) %>%
+	select(BG_ID_10, FemHeadPer, MaleHeadPer) 
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+
+tm_shape(Single.HH.BG.NH) + tm_polygons(c("FemHeadPer", "MaleHeadPer"), style="quantile", palette=list("Oranges", "Purples"),popup.format = list(fun = make_percent), legend.format = list(fun = make_percent), border.col = "darkgray", title=c("Female Householder", "Male Householder")) + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+
+```
+
+
+\
+
+
+### Population in Poverty
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+###########################################      Population in Poverty    ######################################################################
+Poverty.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B17010_002", # Income in the Past 12 Months Below Poverty Level (Family households in poverty)
+																					"B17010_001",  # Total Families Below Poverty Level
+																					"B17001_002", # Persons below poverty
+																					"B17001_001"), # Total
+														keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(FamPovPer_BG = B17010_002E/B17010_001E,
+	       PopPovPer_BG = B17001_002E/B17001_001E,
+	       TotalPopPov_BG = B17001_002E) %>%
+	select(BG_ID_10, FamPovPer_BG, PopPovPer_BG, TotalPopPov_BG) %>%
+  left_join(Each_State6, Poverty.BG, by="BG_ID_10")
+
+# Population in poverty at State level
+Poverty.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B17010_002", # Income in the Past 12 Months Below Poverty Level
+																					"B17010_001", # Total Families Below Poverty Level
+																					"B17001_002", # Persons below poverty
+																					"B17001_001"), # Total 
+														keep_geo_vars = T) %>%
+	mutate(FamPovPer_State = B17010_002E/B17010_001E,
+	       PopPovPer_State = B17001_002E/B17001_001E,
+	       TotalPopPov_State = B17001_002E) %>%
+	select(FamPovPer_State, PopPovPer_State, TotalPopPov_State)  %>%
+  cbind(Poverty.BG) 
+Each_State6 <- Poverty.State
+```
+* The percentage of family, who are in poverty is `r (round(Each_State6$FamPovPer_State[1],2))*100` % in `r Each_State6$State[1]`.\
+* The percentage of population, who are in poverty is `r (round(Each_State6$PopPovPer_State[1],2))*100` % in `r Each_State6$State[1]`.\
+* The total number of people, who are in poverty is 102352 in `r Each_State6$State[1]`.\
+Followed is the Population in Poverty map of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+Poverty.BG.NH <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B17010_002", # Income in the Past 12 Months Below Poverty Level (Family households in poverty)
+																					"B17010_001",  # Total Families Below Poverty Level
+																					"B17001_002", # Persons below poverty
+																					"B17001_001"), # Total
+														keep_geo_vars = T, geometry = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(FamPovPer_BG = (B17010_002E/B17010_001E)*100,
+	       PopPovPer_BG = (B17001_002E/B17001_001E)*100,
+	       TotalPopPov_BG = B17001_002E) %>%
+	select(BG_ID_10, FamPovPer_BG, PopPovPer_BG, TotalPopPov_BG) 
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+tm_shape(Poverty.BG.NH) + tm_polygons("FamPovPer_BG", style="jenks", palette="Purples", border.col = "darkgray", title="Family in Poverty",popup.format = list(fun = make_percent), legend.format = list(fun = make_percent)) + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+
+### Elderly People Living Alone
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+########################################     Elderly People Living Alone    ##############################################################
+# Elderly People Living Alone at Block Group level
+OldAlone.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B11010_005", # Male householder, Living alone, 65 years and over
+																					"B11010_012", # Female householder, Living alone, 65 years and over
+																					"B11010_001"), # Total
+														keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(OldAlonePer_BG = (B11010_012E + B11010_005E)/B11010_001E) %>%
+	select(BG_ID_10, OldAlonePer_BG) 
+# OldAlone.BG
+  
+# Elderly People Living Alone at State level
+OldAlone.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B11010_005", # Male householder, Living alone, 65 years and over
+																					"B11010_012", # Female householder, Living alone, 65 years and over
+																					"B11010_001"), # Total
+														keep_geo_vars = T) %>%
+	mutate(OldAlonePer_State = (B11010_012E + B11010_005E)/B11010_001E) %>%
+	select(OldAlonePer_State) 
+
+Each_State6 <- OldAlone.State %>%
+  cbind(Each_State6)
+## GIVE US NA
+```
+* The percentage of householders, who are living alone and are older than 65 years old is `r (round(Each_State6$OldAlonePer_State[1],2))*100` % in `r Each_State6$State[1]`.\
+
+\
+
+
+## Educational Institutions
+\
+
+### Number/Type of Schools
+\
+
+* `r Each_State6$State[1]` has 308 public school district, which contain 494 public schools. Also, `r Each_State6$State[1]` has 175 private schools.(https://nces.ed.gov/)
+
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Each_State6$SchoolsDistrict <- 308
+Each_State6$PubSchools <- 494
+Each_State6$PvSchools <- 175
+```
+
+
+\
+
+
+### Number/Type of Universities
+\
+
+* `r Each_State6$State[1]` has 37 universities.(https://nces.ed.gov/)
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Each_State6$NumUni <- 37
+```
+
+
+\
+
+### Number of PK-12 Enrollment in Schools
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+############################################################################################################################
+
+                                             # ----------------------------- #
+                                             #    Educational Institutions   #
+                                             #-------------------------------#
+
+# Number of PK-12 Enrollment at block group level
+Enrol.Sch.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B14001_003", # Enrolled in preschool
+																					"B14001_004", # Enrolled in kindergarten
+																					"B14001_005", # Enrolled in grade 1 to 4
+																					"B14001_006", # Enrolled in grade 5 to 8
+																					"B14001_007"), # Enrolled in grade 9 to 12
+														keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(EnrolPK12_BG = B14001_003E + B14001_004E + B14001_005E + B14001_006E + B14001_007E) %>%
+	select(BG_ID_10, EnrolPK12_BG) %>%
+  left_join(Each_State6, Enrol.Sch.BG, by="BG_ID_10")
+
+# Number of PK-12 Enrollment at state level
+Enrol.Sch.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B14001_003", # Enrolled in preschool
+																					"B14001_004", # Enrolled in kindergarten
+																					"B14001_005", # Enrolled in grade 1 to 4
+																					"B14001_006", # Enrolled in grade 5 to 8
+																					"B14001_007"), # Enrolled in grade 9 to 12
+														keep_geo_vars = T) %>%
+	mutate(EnrolPK12_State = B14001_003E + B14001_004E + B14001_005E + B14001_006E + B14001_007E) %>%
+	select(EnrolPK12_State) %>%
+  cbind(Enrol.Sch.BG) 
+
+Each_State6 <- Enrol.Sch.State
+```
+* The total number of students, who enrolled in preschools to 12 grade levels in `r Each_State6$State[1]` schools is 217601.\
+
+\
+
+
+## Employment
+\
+
+
+### Number of Jobs within Community Boundaries
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+########################################################################################################################################
+
+                                                #----------------------#
+                                                #       EMPLOYMENT     #
+                                                #----------------------#
+
+##########################################    Number of Jobs within Community Boundaries   #############################################
+
+Num.jobs.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = "B08007_002", # Total worked in state of residence
+														              keep_geo_vars = T) %>%
+  rename(BG_ID_10 = GEOID) %>%
+	mutate(NumJobs_BG = B08007_002E) %>%
+	select(BG_ID_10, NumJobs_BG) %>%
+  left_join(Each_State6, Num.jobs.BG, by="BG_ID_10")
+
+# Number of Jobs within Community Boundaries at State level
+Num.jobs.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = "B08007_002", # Total worked in state of residence
+														              keep_geo_vars = T) %>%
+	mutate(NumJobs_State = B08007_002E) %>%
+	select(NumJobs_State) %>%
+  cbind(Num.jobs.BG) 
+
+Each_State6 <- Num.jobs.State
+```
+* The number of jobs within community boundaries in `r Each_State6$State[1]` is 597350.\
+
+Followed is the map of Number of Jobs within Community Boundaries of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+
+## MAP
+Num.jobs.BG.NH <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = "B08007_002", # Total worked in state of residence
+														              keep_geo_vars = T, geometry = T) %>%
+  rename(BG_ID_10 = GEOID) %>%
+	mutate(NumJobs_BG = B08007_002E) %>%
+	select(BG_ID_10, NumJobs_BG)
+
+tm_shape(Num.jobs.BG.NH) + tm_polygons("NumJobs_BG", style="jenks", palette="Reds", border.col = "darkgray", title="Number of Jobs") + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+# Work place at Block Group level
+Place.Work.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B08007_003", # Worked in state of residence and worked in county of residence
+														              "B08007_001", # Total
+														              "B08008_003", # Worked in place of residence
+														              "B08008_001"), # Total 
+														              keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(WorkStateCounty_BG = B08007_003E,
+	       WorkStateCountyPer_BG = B08007_003E/B08007_001E,
+	       WorkPlace_BG = B08008_003E,
+	       WorkPlacePer_BG = B08008_003E/B08008_001E) %>%
+	select(BG_ID_10, WorkStateCounty_BG, WorkStateCountyPer_BG, WorkPlace_BG, WorkPlacePer_BG) %>%
+  left_join(Each_State6, Place.Work.BG, by="BG_ID_10")
+
+# Work place at State level
+Place.Work.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B08007_003", # Worked in state of residence and worked in county of residence
+														              "B08007_001", # Total
+														              "B08008_003", # Worked in place of residence
+														              "B08008_001"), # Total 
+														              keep_geo_vars = T) %>%
+	mutate(WorkStateCounty_State = B08007_003E,
+	       WorkStateCountyPer_State = B08007_003E/B08007_001E,
+	       WorkPlace_State = B08008_003E,
+	       WorkPlacePer_State = B08008_003E/B08008_001E) %>%
+	select(WorkStateCounty_State, WorkStateCountyPer_State, WorkPlace_State, WorkPlacePer_State) %>%
+  cbind(Place.Work.BG) 
+
+Each_State6 <- Place.Work.State
+```
+* The number of people, who work in state of residence and worked in county of residence is 456282 in `r Each_State6$State[1]`, which is `r (round(Each_State6$WorkStateCountyPer_State[1],2))*100` % of total workers in `r Each_State6$State[1]`.\
+\
+
+
+### Labor Force (Total number, participation)
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+############################################# Labor Force (Total number, participation)  ####################################
+# Number of labor force at Block Group level
+Labor.Force.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B23025_002", # Number of Labor Force 16 years and over
+														              "B23025_003", # Number of Civilian Labor Force 16 years and over
+														              "B23025_006", # Number of Armed Forces 16 years and over
+														              "B23025_001"), # Total
+														              keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(LabForce_BG = B23025_002E,
+	       LabForcePer_BG = B23025_002E/B23025_001E,
+	       CivLabForce_BG = B23025_003E,
+	       CivLabForcePer_BG = B23025_003E/B23025_001E,
+	       Military_BG = B23025_006E,
+	       MilitaryPer_BG = 	B23025_006E/B23025_001E,
+	       TotalWorkers_BG = B23025_001E) %>%
+	select(BG_ID_10, LabForce_BG, LabForcePer_BG, CivLabForce_BG, CivLabForcePer_BG, Military_BG, MilitaryPer_BG, TotalWorkers_BG) %>%
+  left_join(Each_State6, Labor.Force.BG, by="BG_ID_10")
+
+# Number of labor force at State level
+Labor.Force.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B23025_002", # Number of Labor Force 16 years and over (civilian + armed)
+														              "B23025_003", # Number of Civilian Labor Force 16 years and over
+														              "B23025_006", # Number of Armed Forces 16 years and over
+														              "B23025_001"), # Total
+														              keep_geo_vars = T) %>%
+	mutate(LabForce_State = B23025_002E,
+	       LabForcePer_State = B23025_002E/B23025_001E,
+	       CivLabForce_State = B23025_003E,
+	       CivLabForcePer_State = B23025_003E/B23025_001E,
+	       Military_State = B23025_006E,
+	       MilitaryPer_State = 	B23025_006E/B23025_001E,
+	       TotalWorkers_State = B23025_001E) %>%
+	select(LabForce_State, LabForcePer_State, CivLabForce_State, CivLabForcePer_State, Military_State, MilitaryPer_State, TotalWorkers_State) %>%
+  cbind(Labor.Force.BG) 
+
+Each_State6 <- Labor.Force.State
+```
+* The number of labor force, who are 16 years and older in `r Each_State6$State[1]` is 756239 which is `r round(Each_State6$LabForcePer_State[1],2)` of total number of labors of which 754409 are civilian labor forces and 1830 are armed labor forces.\
+
+Followed is the map of Labor Force of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+Labor.Force.BG.NH <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B23025_002", # Number of Labor Force 16 years and over
+														              "B23025_003", # Number of Civilian Labor Force 16 years and over
+														              "B23025_006", # Number of Armed Forces 16 years and over
+														              "B23025_001"), # Total
+														              keep_geo_vars = T, geometry = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(LabForce_BG = B23025_002E,
+	       LabForcePer_BG = B23025_002E/B23025_001E,
+	       CivLabForce_BG = B23025_003E,
+	       CivLabForcePer_BG = B23025_003E/B23025_001E,
+	       Military_BG = B23025_006E,
+	       MilitaryPer_BG = 	B23025_006E/B23025_001E,
+	       TotalWorkers_BG = B23025_001E) %>%
+	select(BG_ID_10, LabForce_BG, LabForcePer_BG, CivLabForce_BG, CivLabForcePer_BG, Military_BG, MilitaryPer_BG, TotalWorkers_BG)
+
+
+tm_shape(Labor.Force.BG.NH) + tm_polygons("LabForce_BG", style="jenks", palette="seq", border.col = "darkgray", title="Number of Labors") + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+```
+
+\
+
+### Employed and Unemployed
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#####################################################    Employed and Unemployed   ####################################
+# Employed and Unemployed cases at Block Group level
+Emp.Unemp.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B23025_003", # Number of civilian Labor Force 16 years and over
+														              "B23025_004", # Number of Employed individuals 16 years and over
+														              "B23025_005"), # Number of Unemployed individuals 16 years and over
+														keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(EmpRate_BG = B23025_004E/B23025_003E,
+	       UnempRate_BG = B23025_005E/B23025_003E,
+	       EmployedCLF_BG = B23025_004E,
+	       UnemployedCLF_BG = B23025_005E) %>%
+	select(BG_ID_10 ,EmpRate_BG, UnempRate_BG, EmployedCLF_BG, UnemployedCLF_BG) %>%
+  left_join(Each_State6, Emp.Unemp.BG, by="BG_ID_10")
+
+# Employed and Unemployed cases at State level
+Emp.Unemp.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B23025_003", # Number of civilian Labor Force 16 years and over
+														              "B23025_004", # Number of Employed individuals 16 years and over
+														              "B23025_005"), # Number of Unemployed individuals 16 years and over
+														keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(EmpRate_State = B23025_004E/B23025_003E,
+	       UnempRate_State = B23025_005E/B23025_003E,
+	       EmployedCLF_State = B23025_004E,
+	       UnemployedCLF_State = B23025_005E) %>%
+	select(EmpRate_State, UnempRate_State, EmployedCLF_State, UnemployedCLF_State) %>%
+  cbind(Emp.Unemp.BG) 
+
+Each_State6 <- Emp.Unemp.State
+```
+* The rate of employment in `r Each_State6$State[1]` is `r round(Each_State6$EmpRate_State[1],2)*100`%.\
+* The rate of unemployment in `r Each_State6$State[1]` is `r round(Each_State6$UnempRate_State[1],2)*100`%.\
+
+Followed is Employed and Unemployed map of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+Emp.Unemp.BG.NH <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B23025_003", # Number of civilian Labor Force 16 years and over
+														              "B23025_004", # Number of Employed individuals 16 years and over
+														              "B23025_005"), # Number of Unemployed individuals 16 years and over
+														keep_geo_vars = T, geometry = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(EmpRate_BG = B23025_004E/B23025_003E,
+	       UnempRate_BG = B23025_005E/B23025_003E,
+	       EmployedCLF_BG = B23025_004E,
+	       UnemployedCLF_BG = B23025_005E) %>%
+	select(BG_ID_10 ,EmpRate_BG, UnempRate_BG, EmployedCLF_BG, UnemployedCLF_BG) 
+
+
+tm_shape(Emp.Unemp.BG.NH) + tm_polygons(c("EmpRate_BG","UnempRate_BG"), style="jenks", palette=list("Greens","seq"), border.col = "darkgray", title=c("Employment rate","Unemployment rate")) + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+
+### Major Employers by NCAIS Code
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+################################    Major Employers by NCAIS Code    ##########################################
+# Major Employers by NCAIS Code at Block Group level
+Emp.NCAIS.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("C24030_002", # Number of male by industry for the civilian employed, 16 years and over
+														              "C24030_029", # Number of female by industry for the civilian employed, 16 years and over
+														              "C24030_001"), # Total
+														keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(MaleNCAIS_BG = C24030_002E,
+	       FemaleNCAIS_BG = C24030_029E,
+	       MaleNCAISPer_BG = C24030_002E/C24030_001E,
+	       FemaleNCAISPer_BG = C24030_029E/C24030_001E) %>%
+	select(BG_ID_10 , MaleNCAIS_BG, FemaleNCAIS_BG, MaleNCAISPer_BG, FemaleNCAISPer_BG) %>%
+  left_join(Each_State6, Emp.NCAIS.BG, by="BG_ID_10")
+
+# Major Employers by NCAIS Code at State level
+Emp.NCAIS.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("C24030_002", # Number of male by industry for the civilian employed, 16 years and over
+														              "C24030_029", # Number of female by industry for the civilian employed, 16 years and over
+														              "C24030_001"), # Total
+														keep_geo_vars = T) %>%
+	mutate(MaleNCAIS_State = C24030_002E,
+	       FemaleNCAIS_State = C24030_029E,
+	       MaleNCAISPer_State = C24030_002E/C24030_001E,
+	       FemaleNCAISPer_State = C24030_029E/C24030_001E) %>%
+	select(MaleNCAIS_State, FemaleNCAIS_State, MaleNCAISPer_State, FemaleNCAISPer_State) %>%
+  cbind(Emp.NCAIS.BG) 
+
+Each_State6 <- Emp.NCAIS.State
+```
+* Number of male by industry for the civilian employed in `r Each_State6$State[1]` is 376626 which is `r round(Each_State6$MaleNCAISPer_State[1],2)` of population, who are 16 years and over.\
+* Number of female by industry for the civilian employed in `r Each_State6$State[1]` is 347391 which is `r round(Each_State6$FemaleNCAISPer_State[1],2)` of population, who are 16 years and over.\
+
+Followed is the map of the Major Employers by NCAIS Code of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+Emp.NCAIS.BG.NH <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("C24030_002", # Number of male by industry for the civilian employed, 16 years and over
+														              "C24030_029", # Number of female by industry for the civilian employed, 16 years and over
+														              "C24030_001"), # Total
+														keep_geo_vars = T, geometry = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(MaleNCAIS_BG = C24030_002E,
+	       FemaleNCAIS_BG = C24030_029E,
+	       MaleNCAISPer_BG = C24030_002E/C24030_001E,
+	       FemaleNCAISPer_BG = C24030_029E/C24030_001E) %>%
+	select(BG_ID_10 , MaleNCAIS_BG, FemaleNCAIS_BG, MaleNCAISPer_BG, FemaleNCAISPer_BG) 
+
+
+tm_shape(Emp.NCAIS.BG.NH) + tm_polygons(c("MaleNCAIS_BG","FemaleNCAIS_BG"), style="jenks", palette=list("Greens","seq"), border.col = "darkgray", title=c("MaleNCAIS","FemaleNCAIS")) + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+tm_shape(Emp.NCAIS.BG.NH) + tm_polygons(c("MaleNCAISPer_BG","FemaleNCAISPer_BG"), style="jenks", palette=list("Blues","Reds"), border.col = "darkgray", title=c("MaleNCAIS Per","FemaleNCAIS Per"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent)) + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+```
+
+\
+
+### Top Industries by NCAIS Code
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+######################################    Top Industries by NCAIS Code   ##################################################
+# Top Industries by NCAIS Code at Block Group level
+Industries.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("C24030_003", # Agriculture, forestry, fishing and hunting, and mining (Male)
+														              "C24030_030", # Agriculture, forestry, fishing and hunting, and mining (Female)
+														              "C24030_006", # Construction (Male)
+														              "C24030_033", # Construction (Female)
+														              "C24030_007", # Manufacturing (Male)
+														              "C24030_034", # Manufacturing (Female)
+														              "C24030_008", # Wholesale trade (Male)
+														              "C24030_035", # Wholesale trade (Female)
+														              "C24030_009", # Retail trade (Male)
+														              "C24030_036", # Retail trade (Female)
+														              "C24030_010", # Transportation and warehousing, and utilities (Male)
+														              "C24030_037", # Transportation and warehousing, and utilities (Female)
+														              "C24030_013", # Information (Male)
+														              "C24030_040", # Information (Female)
+														              "C24030_014", # Finance and insurance, and real estate, and rental and leasing (Male)
+														              "C24030_041", # Finance and insurance, and real estate, and rental and leasing (Female)
+														              "C24030_017", # Professional, scientific, and management, and administrative, and waste management services (Male)
+														              "C24030_044", # Professional, scientific, and management, and administrative, and waste management services (Female)
+														              "C24030_021", # Educational services, and health care and social assistance (Male)
+														              "C24030_048", # Educational services, and health care and social assistance (Female)
+														              "C24030_024", # Arts, entertainment, and recreation, and accommodation and food services (Male)
+														              "C24030_051", # Arts, entertainment, and recreation, and accommodation and food services (Female)
+														              "C24030_027", # Other services, except public administration (Male)
+														              "C24030_054", # Other services, except public administration (Female)
+														              "C24030_028", # Public administration (Male)
+														              "C24030_055", # Public administration (Female)
+														              "C24030_001"), # Total
+														keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(Agriculture_BG = (C24030_003E + C24030_030E)/C24030_001E,
+	       Construction_BG = (C24030_006E + C24030_033E)/C24030_001E,
+	       Manufacturing_BG = (C24030_007E + C24030_034E)/C24030_001E,
+	       WholesaleTrade_BG = (C24030_008E + C24030_035E)/C24030_001E,
+	       RetailTrade_BG = (C24030_009E + C24030_036E)/C24030_001E,
+	       Transportation_BG = (C24030_010E + C24030_037E)/C24030_001E,
+	       Information_BG = (C24030_013E + C24030_040E)/C24030_001E,
+	       Finance_Ins_BG = (C24030_014E + C24030_041E)/C24030_001E,
+	       Professional_BG = (C24030_017E + C24030_044E)/C24030_001E,
+	       Educ_Health_SocSvcs_BG = (C24030_021E + C24030_048E)/C24030_001E,
+	       RecreationEtc_BG = (C24030_024E + C24030_051E)/C24030_001E,
+	       OtherIndustries_BG = (C24030_027E + C24030_054E)/C24030_001E,
+	       PublicAdmin_BG = (C24030_028E + C24030_055E)/C24030_001E) %>%
+	select(BG_ID_10,Agriculture_BG,Construction_BG,Manufacturing_BG,WholesaleTrade_BG,RetailTrade_BG,Transportation_BG,Information_BG,
+	       Finance_Ins_BG,Professional_BG,Educ_Health_SocSvcs_BG,RecreationEtc_BG,OtherIndustries_BG,PublicAdmin_BG) %>%
+  left_join(Each_State6, Industries.BG, by="BG_ID_10")
+
+# Top Industries by NCAIS Code at State level
+Industries.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("C24030_003", # Agriculture, forestry, fishing and hunting, and mining (Male)
+														              "C24030_030", # Agriculture, forestry, fishing and hunting, and mining (Female)
+														              "C24030_006", # Construction (Male)
+														              "C24030_033", # Construction (Female)
+														              "C24030_007", # Manufacturing (Male)
+														              "C24030_034", # Manufacturing (Female)
+														              "C24030_008", # Wholesale trade (Male)
+														              "C24030_035", # Wholesale trade (Female)
+														              "C24030_009", # Retail trade (Male)
+														              "C24030_036", # Retail trade (Female)
+														              "C24030_010", # Transportation and warehousing, and utilities (Male)
+														              "C24030_037", # Transportation and warehousing, and utilities (Female)
+														              "C24030_013", # Information (Male)
+														              "C24030_040", # Information (Female)
+														              "C24030_014", # Finance and insurance, and real estate, and rental and leasing (Male)
+														              "C24030_041", # Finance and insurance, and real estate, and rental and leasing (Female)
+														              "C24030_017", # Professional, scientific, and management, and administrative, and waste management services (Male)
+														              "C24030_044", # Professional, scientific, and management, and administrative, and waste management services (Female)
+														              "C24030_021", # Educational services, and health care and social assistance (Male)
+														              "C24030_048", # Educational services, and health care and social assistance (Female)
+														              "C24030_024", # Arts, entertainment, and recreation, and accommodation and food services (Male)
+														              "C24030_051", # Arts, entertainment, and recreation, and accommodation and food services (Female)
+														              "C24030_027", # Other services, except public administration (Male)
+														              "C24030_054", # Other services, except public administration (Female)
+														              "C24030_028", # Public administration (Male)
+														              "C24030_055", # Public administration (Female)
+														              "C24030_001"), # Total
+														keep_geo_vars = T) %>%
+	mutate(Agriculture_State = (C24030_003E + C24030_030E)/C24030_001E,
+	       Construction_State = (C24030_006E + C24030_033E)/C24030_001E,
+	       Manufacturing_State = (C24030_007E + C24030_034E)/C24030_001E,
+	       WholesaleTrade_State = (C24030_008E + C24030_035E)/C24030_001E,
+	       RetailTrade_State = (C24030_009E + C24030_036E)/C24030_001E,
+	       Transportation_State = (C24030_010E + C24030_037E)/C24030_001E,
+	       Information_State = (C24030_013E + C24030_040E)/C24030_001E,
+	       Finance_Ins_State = (C24030_014E + C24030_041E)/C24030_001E,
+	       Professional_State = (C24030_017E + C24030_044E)/C24030_001E,
+	       Educ_Health_SocSvcs_State = (C24030_021E + C24030_048E)/C24030_001E,
+	       RecreationEtc_State = (C24030_024E + C24030_051E)/C24030_001E,
+	       OtherIndustries_State = (C24030_027E + C24030_054E)/C24030_001E,
+	       PublicAdmin_State = (C24030_028E + C24030_055E)/C24030_001E) %>%
+	select(Agriculture_State,Construction_State,Manufacturing_State,WholesaleTrade_State,RetailTrade_State,Transportation_State,Information_State,
+	       Finance_Ins_State,Professional_State,Educ_Health_SocSvcs_State,RecreationEtc_State,OtherIndustries_State,PublicAdmin_State) %>%
+  cbind(Industries.BG) 
+
+Each_State6 <- Industries.State
+```
+* The percentage of people, who are in agriculture, forestry, fishing, hunting, and mining in `r Each_State6$State[1]` is `r (round(Each_State6$Agriculture_State[1],2))*100`%.\
+
+* The percentage of people, who are in construction in `r Each_State6$State[1]` state is `r (round(Each_State6$Construction_State[1],2))*100`%".\
+
+* The percentage of people, who are in manufacturing in `r Each_State6$State[1]` state is `r (round(Each_State6$Manufacturing_State[1],2))*100`%.\
+
+* The percentage of people, who are in wholesale trade in `r Each_State6$State[1]` state is `r (round(Each_State6$WholesaleTrade_State[1],2))*100`%.\
+
+* The percentage of people, who are in retail trade in `r Each_State6$State[1]` state is `r (round(Each_State6$RetailTrade_State[1],2))*100`%.\
+
+* The percentage of people, who are in transportation and warehousing, and utilities in`r Each_State6$State[1]`state is`r (round(Each_State6$Transportation_State[1],2))*100`%.\
+
+* The percentage of people, who are in information in `r Each_State6$State[1]` state is `r (round(Each_State6$Information_State[1],2))*100`%.\
+
+* The percentage of people, who are in finance and insurance, and real estate, and rental and leasing in `r Each_State6$State[1]` state is `r (round(Each_State6$Finance_Ins_State[1],2))*100`%.\
+
+* The percentage of people, who are in professional, scientific, and management, and administrative, and waste management services in `r  Each_State6$State[1]` state is `r (round(Each_State6$Professional_State[1],2))*100`%.\
+
+* The percentage of people, who are in educational services, and health care and social assistance in `r Each_State6$State[1]` state is `r (round(Each_State6$Educ_Health_SocSvcs_State[1],2))*100`%.\
+
+* The percentage of people, who are in arts, entertainment, and recreation, and accommodation and food services in `r Each_State6$State[1]` state is `r (round(Each_State6$RecreationEtc_State[1],2))*100`%.\
+
+* The percentage of people, who are in other services, except public administration in `r Each_State6$State[1]` state is `r (round(Each_State6$OtherIndustries_State[1],2))*100`%.\
+
+* The percentage of people, who are in Public administration in `r Each_State6$State[1]` state is `r (round(Each_State6$PublicAdmin_State[1],2))*100`%.\
+\
+
+### Earning Breakdown 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+###########################    Earning Breakdown   ####################################
+# Earning at Block Group level
+Med.Earning.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = "B20017_001", # Median earnings in the past 12 months 
+	keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(MedEarning_BG = B20017_001E) %>%
+	select(BG_ID_10 ,MedEarning_BG) %>%
+  left_join(Each_State6, Med.Earning.BG, by="BG_ID_10")
+
+# Earning at State level
+Med.Earning.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = "B20017_001", # Median earnings in the past 12 months 
+	keep_geo_vars = T) %>%
+	mutate(MedEarning_State = B20017_001E) %>%
+	select(MedEarning_State) %>%
+  cbind(Med.Earning.BG) 
+
+Each_State6 <- Med.Earning.State
+```
+* The median earning in `r Each_State6$State[1]` is 38025 Dollar.\
+Followed is the Median Earning map of the state.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+# Earning at Block Group level
+Med.Earning.BG.NH <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = "B20017_001", # Median earnings in the past 12 months 
+	keep_geo_vars = T, geometry = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(MedEarning_BG = B20017_001E) %>%
+  select(BG_ID_10, MedEarning_BG )
+
+make_dollar <- function(x, digits = 0) {
+  paste0("$", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+tm_shape(Med.Earning.BG.NH) + tm_polygons("MedEarning_BG" , palette="seq", style = "jenks", title = "Median Earning", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+
+### Employee Age
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################    Employee Age   #############################################################
+
+# Age of employees at Block Group level
+Emp.Age.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide", # Age by employment status for the population 16 years and over (Employed+Armed)
+						     variables = c("B23001_005","B23001_007","B23001_012","B23001_014","B23001_019","B23001_021","B23001_026","B23001_028", # Age 29 or younger male
+								"B23001_033","B23001_035","B23001_040","B23001_042","B23001_047","B23001_049", # Age 30 to 54 male
+								"B23001_054","B23001_056","B23001_061","B23001_063","B23001_068","B23001_070","B23001_075","B23001_080","B23001_085", # Age 55 or older male
+								"B23001_091","B23001_093","B23001_098","B23001_100","B23001_105","B23001_107","B23001_112","B23001_114", # Age 29 or younger female
+								"B23001_119","B23001_121","B23001_126","B23001_128","B23001_133","B23001_135", # Age 30 to 54 female
+								"B23001_140","B23001_142","B23001_147","B23001_149","B23001_154","B23001_156","B23001_161","B23001_166","B23001_171", # Age 55 or older female
+														              "B23001_001"), # Total
+														keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(AgeEmpU29_BG = B23001_005E+B23001_007E+B23001_012E+B23001_014E+B23001_019E+B23001_021E+B23001_026E+B23001_028E+
+	         B23001_091E+B23001_093E+B23001_098E+B23001_100E+B23001_105E+B23001_107E+B23001_112E+B23001_114E,
+	       AgeEmp3054_BG = B23001_033E+B23001_035E+	B23001_040E+B23001_042E+B23001_047E+B23001_049E+
+	         B23001_119E+B23001_121E+B23001_126E+B23001_128E+B23001_133E+B23001_135E,
+	       AgeEmpO55_BG = B23001_054E+B23001_056E+B23001_061E+B23001_063E+B23001_068E+B23001_070E+B23001_075E+B23001_080E+B23001_085E+
+	        B23001_140E+B23001_142E+B23001_147E+B23001_149E+B23001_154E+B23001_156E+B23001_161E+B23001_166E+B23001_171E,
+	       
+	       AgeEmpU29Per_BG = (B23001_005E+B23001_007E+B23001_012E+B23001_014E+B23001_019E+B23001_021E+B23001_026E+B23001_028E+
+	         B23001_091E+B23001_093E+B23001_098E+B23001_100E+B23001_105E+B23001_107E+B23001_112E+B23001_114E)/B23001_001E,
+	        AgeEmp3054Per_BG = (B23001_033E+B23001_035E+B23001_040E+B23001_042E+B23001_047E+B23001_049E+
+	         B23001_119E+B23001_121E+B23001_126E+B23001_128E+B23001_133E+B23001_135E)/B23001_001E,
+	       AgeEmpO55Per_BG = (B23001_054E+B23001_056E+B23001_061E+B23001_063E+B23001_068E+B23001_070E+B23001_075E+B23001_080E+B23001_085E+
+	        B23001_140E+B23001_142E+B23001_147E+B23001_149E+B23001_154E+B23001_156E+B23001_161E+B23001_166E+B23001_171E)/B23001_001E) %>%
+	select(BG_ID_10,AgeEmpU29_BG,AgeEmp3054_BG,AgeEmpO55_BG,AgeEmpU29Per_BG,AgeEmp3054Per_BG,AgeEmpO55Per_BG) %>%
+  left_join(Each_State6, Emp.Age.BG, by="BG_ID_10")
+
+# Age of employees at State level
+Emp.Age.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide", # Age by employment status for the population 16 years and over (Employed+Armed)
+						     variables = c("B23001_005","B23001_007","B23001_012","B23001_014","B23001_019","B23001_021","B23001_026","B23001_028", # Age 29 or younger male
+								"B23001_033","B23001_035","B23001_040","B23001_042","B23001_047","B23001_049", # Age 30 to 54 male
+								"B23001_054","B23001_056","B23001_061","B23001_063","B23001_068","B23001_070","B23001_075","B23001_080","B23001_085", # Age 55 or older male
+								"B23001_091","B23001_093","B23001_098","B23001_100","B23001_105","B23001_107","B23001_112","B23001_114", # Age 29 or younger female
+								"B23001_119","B23001_121","B23001_126","B23001_128","B23001_133","B23001_135", # Age 30 to 54 female
+								"B23001_140","B23001_142","B23001_147","B23001_149","B23001_154","B23001_156","B23001_161","B23001_166","B23001_171", # Age 55 or older female
+														              "B23001_001"), # Total
+														keep_geo_vars = T) %>%
+	mutate(AgeEmpU29_State = B23001_005E+B23001_007E+B23001_012E+B23001_014E+B23001_019E+B23001_021E+B23001_026E+B23001_028E+
+	         B23001_091E+B23001_093E+B23001_098E+B23001_100E+B23001_105E+B23001_107E+B23001_112E+B23001_114E,
+	       AgeEmp3054_State = B23001_033E+B23001_035E+	B23001_040E+B23001_042E+B23001_047E+B23001_049E+
+	         B23001_119E+B23001_121E+B23001_126E+B23001_128E+B23001_133E+B23001_135E,
+	       AgeEmpO55_State = B23001_054E+B23001_056E+B23001_061E+B23001_063E+B23001_068E+B23001_070E+B23001_075E+B23001_080E+B23001_085E+
+	        B23001_140E+B23001_142E+B23001_147E+B23001_149E+B23001_154E+B23001_156E+B23001_161E+B23001_166E+B23001_171E,
+	       
+	       AgeEmpU29Per_State = (B23001_005E+B23001_007E+B23001_012E+B23001_014E+B23001_019E+B23001_021E+B23001_026E+B23001_028E+
+	         B23001_091E+B23001_093E+B23001_098E+B23001_100E+B23001_105E+B23001_107E+B23001_112E+B23001_114E)/B23001_001E,
+	        AgeEmp3054Per_State = (B23001_033E+B23001_035E+B23001_040E+B23001_042E+B23001_047E+B23001_049E+
+	         B23001_119E+B23001_121E+B23001_126E+B23001_128E+B23001_133E+B23001_135E)/B23001_001E,
+	       AgeEmpO55Per_State = (B23001_054E+B23001_056E+B23001_061E+B23001_063E+B23001_068E+B23001_070E+B23001_075E+B23001_080E+B23001_085E+
+	        B23001_140E+B23001_142E+B23001_147E+B23001_149E+B23001_154E+B23001_156E+B23001_161E+B23001_166E+B23001_171E)/B23001_001E) %>%
+	select(AgeEmpU29_State,AgeEmp3054_State,AgeEmpO55_State,AgeEmpU29Per_State,AgeEmp3054Per_State,AgeEmpO55Per_State) %>%
+  cbind(Emp.Age.BG) 
+
+Each_State6 <- Emp.Age.State
+```
+* The number of workers, who are younger than 29 years old in `r Each_State6$State[1]` is 169264 which is `r (round(Each_State6$AgeEmpU29Per_State[1],2))*100`% of total number of workers.\
+
+* The number of workers, who are between 30 and 54 years old in `r Each_State6$State[1]` is 361801 which is `r (round(Each_State6$AgeEmp3054Per_State[1],2))*100`% of total number of workers.\
+
+* The number of workers, who are older than 55 years old in `r Each_State6$State[1]` is 194782 which is `r (round(Each_State6$AgeEmpO55Per_State[1],2))*100`% of total number of workers.\
+
+\
+
+
+### Employee Race
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################      Employee Race    ############################################################
+# Employee race at Block Group level
+Emp.Race.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("C23002A_007","C23002A_012","C23002A_020","C23002A_025","C23002A_005","C23002A_018", # White alone
+														              "C23002B_007","C23002B_012","C23002B_020","C23002B_025","C23002B_005","C23002B_018", # Black or African American alone
+														              "C23002D_007","C23002D_012","C23002D_020","C23002D_025","C23002D_005","C23002D_018", # Asian alone
+														              "C23002I_007","C23002I_012","C23002I_020","C23002I_025","C23002I_005","C23002I_018", # Hispanic or Latino alone
+														              "C23002G_007","C23002G_012","C23002G_020","C23002G_025","C23002G_005","C23002G_018",# Two or more races
+														              "B23001_001"), # Total
+
+						keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(WhiteEmp_BG = C23002A_007E+C23002A_012E+C23002A_020E+C23002A_025E+C23002A_005E+C23002A_018E,
+	       BlackEmp_BG = C23002B_007E+C23002B_012E+C23002B_020E+C23002B_025E+C23002B_005E+C23002B_018E,
+	       AsianEmp_BG = C23002D_007E+C23002D_012E+C23002D_020E+C23002D_025E+C23002D_005E+C23002D_018E,
+	       HispanicEmp_BG = C23002I_007E+C23002I_012E+C23002I_020E+C23002I_025E+C23002I_005E+C23002I_018E,
+	       TwoOrMoreEmp_BG = C23002G_007E+C23002G_012E+C23002G_020E+C23002G_025E+C23002G_005E+C23002G_018E,
+         WhiteEmpPer_BG = (C23002A_007E+C23002A_012E+C23002A_020E+C23002A_025E+C23002A_005E+C23002A_018E)/B23001_001E,
+	       BlackEmpPer_BG = (C23002B_007E+C23002B_012E+C23002B_020E+C23002B_025E+C23002B_005E+C23002B_018E)/B23001_001E,
+	       AsianEmpPer_BG = (C23002D_007E+C23002D_012E+C23002D_020E+C23002D_025E+C23002D_005E+C23002D_018E)/B23001_001E,
+	       HispanicEmpPer_BG = (C23002I_007E+C23002I_012E+C23002I_020E+C23002I_025E+C23002I_005E+C23002I_018E)/B23001_001E,
+	       TwoOrMoreEmpPer_BG = (C23002G_007E+C23002G_012E+C23002G_020E+C23002G_025E+C23002G_005E+C23002G_018E)/B23001_001E) %>%
+	select(BG_ID_10 ,WhiteEmp_BG, BlackEmp_BG, AsianEmp_BG, HispanicEmp_BG, TwoOrMoreEmp_BG,
+	       WhiteEmpPer_BG, BlackEmpPer_BG, AsianEmpPer_BG, HispanicEmpPer_BG, TwoOrMoreEmpPer_BG) %>%
+  left_join(Each_State6, Emp.Race.BG, by="BG_ID_10")
+
+# Employee race at State level
+Emp.Race.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("C23002A_007","C23002A_012","C23002A_020","C23002A_025","C23002A_005","C23002A_018", # White alone
+														              "C23002B_007","C23002B_012","C23002B_020","C23002B_025","C23002B_005","C23002B_018", # Black or African American alone
+														              "C23002D_007","C23002D_012","C23002D_020","C23002D_025","C23002D_005","C23002D_018", # Asian alone
+														              "C23002I_007","C23002I_012","C23002I_020","C23002I_025","C23002I_005","C23002I_018", # Hispanic or Latino alone
+														              "C23002G_007","C23002G_012","C23002G_020","C23002G_025","C23002G_005","C23002G_018", # Two or more races
+														              "B23001_001"), # Total
+														keep_geo_vars = T) %>%
+	mutate(WhiteEmp_State = C23002A_007E+C23002A_012E+C23002A_020E+C23002A_025E+C23002A_005E+C23002A_018E,
+	       BlackEmp_State = C23002B_007E+C23002B_012E+C23002B_020E+C23002B_025E+C23002B_005E+C23002B_018E,
+	       AsianEmp_State = C23002D_007E+C23002D_012E+C23002D_020E+C23002D_025E+C23002D_005E+C23002D_018E,
+	       HispanicEmp_State = C23002I_007E+C23002I_012E+C23002I_020E+C23002I_025E+C23002I_005E+C23002I_018E,
+	       TwoOrMoreEmp_State = C23002G_007E+C23002G_012E+C23002G_020E+C23002G_025E+C23002G_005E+C23002G_018E,
+         WhiteEmpPer_State = (C23002A_007E+C23002A_012E+C23002A_020E+C23002A_025E+C23002A_005E+C23002A_018E)/B23001_001E,
+	       BlackEmpPer_State = (C23002B_007E+C23002B_012E+C23002B_020E+C23002B_025E+C23002B_005E+C23002B_018E)/B23001_001E,
+	       AsianEmpPer_State = (C23002D_007E+C23002D_012E+C23002D_020E+C23002D_025E+C23002D_005E+C23002D_018E)/B23001_001E,
+	       HispanicEmpPer_State = (C23002I_007E+C23002I_012E+C23002I_020E+C23002I_025E+C23002I_005E+C23002I_018E)/B23001_001E,
+	       TwoOrMoreEmpPer_State = (C23002G_007E+C23002G_012E+C23002G_020E+C23002G_025E+C23002G_005E+C23002G_018E)/B23001_001E) %>%
+	select(WhiteEmp_State, BlackEmp_State, AsianEmp_State, HispanicEmp_State, TwoOrMoreEmp_State,
+	       WhiteEmpPer_State, BlackEmpPer_State, AsianEmpPer_State, HispanicEmpPer_State, TwoOrMoreEmpPer_State) %>%
+  cbind(Emp.Race.BG) 
+
+Each_State6 <- Emp.Race.State 
+```
+
+* The number of white workers in `r Each_State6$State[1]` is 681466 which is `r (round(Each_State6$WhiteEmpPer_State[1],2))*100`% of total number of workers.\
+
+* The number of black workers in `r Each_State6$State[1]` is 9962 which is `r (round(Each_State6$BlackEmpPer_State[1],2))*100`% of total number of workers.\
+
+* The number of asian workers in `r Each_State6$State[1]` is 19169 which is `r (round(Each_State6$AsianEmpPer_State[1],2))*100`% of total number of workers.\
+
+* The number of hispanic or latino workers in `r Each_State6$State[1]` is 23004 which is `r (round(Each_State6$HispanicEmpPer_State[1],2))*100`% of total number of workers.\
+
+* The number of workers, who have two or more races in `r Each_State6$State[1]` is 10176 which is `r (round(Each_State6$TwoOrMoreEmpPer_State[1],2))*100`% of total number of workers.\
+\
+
+
+### Employee Education
+\
+```{r message=FALSE, warning=FALSE, ,echo=FALSE, results='hide', comment=""}
+#############################################   Employee Education    ########################################################
+# Employee education at Block Group level
+Emp.Educ.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B16010_003", # Less than high school graduate in labor force
+														              "B16010_016", # High school graduate in labor force 
+														              "B16010_029", # Some college or associate's degree in labor force
+														              "B16010_042"), # Bachelor's degree or higher in labor force
+												
+														keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID) %>%
+	mutate(LessThanHSLabor_BG = B16010_003E,
+	       HSGradLabor_BG = B16010_016E,
+	       SomeCollLabor_BG = B16010_029E,
+	       BachOrHigherLabor_BG = B16010_042E) %>%
+	select(BG_ID_10 ,LessThanHSLabor_BG, HSGradLabor_BG, SomeCollLabor_BG, BachOrHigherLabor_BG) %>%
+  left_join(Each_State6, Emp.Educ.BG, by="BG_ID_10")
+
+# Employee education at State level
+Emp.Educ.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B16010_003", # Less than high school graduate in labor force
+														              "B16010_016", # High school graduate in labor force 
+														              "B16010_029", # Some college or associate's degree in labor force
+														              "B16010_042",
+														              "B16010_001"), # Bachelor's degree or higher in labor force
+												
+														keep_geo_vars = T) %>%
+	mutate(LessThanHSLabor_State = B16010_003E,
+	       HSGradLabor_State = B16010_016E,
+	       SomeCollLabor_State = B16010_029E,
+	       BachOrHigherLabor_State = B16010_042E,
+	       LessThanHSLaborPer = LessThanHSLabor_State/B16010_001E,
+	       HSGradLaborPer = HSGradLabor_State/B16010_001E,
+	       SomeCollLaborPer = SomeCollLabor_State/B16010_001E,
+	       BachOrHigherLaborPer = BachOrHigherLabor_State/B16010_001E) %>%
+	select(LessThanHSLabor_State, HSGradLabor_State, SomeCollLabor_State, BachOrHigherLabor_State,
+	       LessThanHSLaborPer, HSGradLaborPer, SomeCollLaborPer, BachOrHigherLaborPer) %>%
+  cbind(Emp.Educ.BG) 
+
+Each_State6 <- Emp.Educ.State 
+```
+* The number of workers, who have less than high school degree in `r Each_State6$State[1]` is 28744 which is `r (round(Each_State6$LessThanHSLaborPer[1],2))*100`% of total number of workers.\
+
+* The number of workers, who have high school degree in `r Each_State6$State[1]` is 160833 which is `r (round(Each_State6$HSGradLaborPer[1],2))*100`% of total number of workers.\
+
+* The number of workers, who have some college or associates degree in `r Each_State6$State[1]` is 195367 which is `r (round(Each_State6$SomeCollLaborPer[1],2))*100`% of total number of workers.\
+
+* The number of workers, who have bachelors degree or higher in `r Each_State6$State[1]` is 260328 which is `r (round(Each_State6$BachOrHigherLaborPer[1],2))*100`% of total number of workers.\
+
+\
+
+### Employee Sex
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################    Employee Sex   #############################################################
+# Employee gender at Block Group level
+Emp.Sex.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B23001_005", # Employed males
+														              "B23001_007", 
+														              "B23001_012",
+														              "B23001_014",
+														              "B23001_019",
+														              "B23001_021",
+														              "B23001_026",
+														              "B23001_028",
+														              "B23001_033",
+														              "B23001_035",
+														              "B23001_040",
+														              "B23001_042",
+														              "B23001_047",
+														              "B23001_049",
+														              "B23001_054",
+														              "B23001_056",
+														              "B23001_061",
+														              "B23001_063",
+														              "B23001_068",
+														              "B23001_070",
+														              "B23001_075",
+														              "B23001_080",
+														              "B23001_085",
+														              "B23001_091", # Employed females
+														              "B23001_093",
+														              "B23001_098",
+														              "B23001_100",
+														              "B23001_105",
+														              "B23001_107",
+														              "B23001_112",
+														              "B23001_114",
+														              "B23001_119",
+														              "B23001_121",
+														              "B23001_126",
+														              "B23001_128",
+														              "B23001_133",
+														              "B23001_135",
+														              "B23001_140",
+														              "B23001_142",
+														              "B23001_147",
+														              "B23001_149",
+														              "B23001_154",
+														              "B23001_156",
+														              "B23001_161",
+														              "B23001_166",
+														              "B23001_171"), # Total employees
+														keep_geo_vars = T) %>%
+  rename(BG_ID_10 = GEOID) %>%
+	mutate(EmpMale_BG = B23001_005E + B23001_007E + B23001_012E + B23001_014E + B23001_019E + B23001_021E + B23001_026E + B23001_028E + B23001_033E + B23001_035E + B23001_040E + B23001_042E + B23001_047E + B23001_049E + B23001_054E + B23001_056E + B23001_061E + B23001_063E + B23001_068E+ B23001_070E + B23001_075E + B23001_080E + B23001_085E,
+	  EmpFemale_BG = B23001_091E + B23001_093E + B23001_098E + B23001_100E + B23001_105E + B23001_107E + B23001_112E + B23001_114E + B23001_119E + B23001_121E + B23001_126E + B23001_128E + B23001_133E + B23001_135E + B23001_140E + B23001_142E + B23001_147E + B23001_149E + B23001_154E + B23001_156E + B23001_161E + B23001_166E + B23001_171E,
+	  TotalEmp_BG = EmpMale_BG + EmpFemale_BG) %>%
+	select(BG_ID_10, EmpMale_BG, EmpFemale_BG, TotalEmp_BG)%>%
+  left_join(Each_State6, Emp.Sex.BG, by="BG_ID_10")
+
+
+# Employee gender at State level
+Emp.Sex.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B23001_005", # Employed males
+														              "B23001_007",
+														              "B23001_012",
+														              "B23001_014",
+														              "B23001_019",
+														              "B23001_021",
+														              "B23001_026",
+														              "B23001_028",
+														              "B23001_033",
+														              "B23001_035",
+														              "B23001_040",
+														              "B23001_042",
+														              "B23001_047",
+														              "B23001_049",
+														              "B23001_054",
+														              "B23001_056",
+														              "B23001_061",
+														              "B23001_063",
+														              "B23001_068",
+														              "B23001_070",
+														              "B23001_075",
+														              "B23001_080",
+														              "B23001_085",
+														              "B23001_091",
+														              "B23001_093", # Employed females
+														              "B23001_098",
+														              "B23001_100",
+														              "B23001_105",
+														              "B23001_107",
+														              "B23001_112",
+														              "B23001_114",
+														              "B23001_119",
+														              "B23001_121",
+														              "B23001_126",
+														              "B23001_128",
+														              "B23001_133",
+														              "B23001_135",
+														              "B23001_140",
+														              "B23001_142",
+														              "B23001_147",
+														              "B23001_149",
+														              "B23001_154",
+														              "B23001_156",
+														              "B23001_161",
+														              "B23001_166",
+														              "B23001_171",
+														              "B23001_001"), # Total employees
+														keep_geo_vars = T) %>%
+	mutate(EmpMale_State = B23001_005E + B23001_007E + B23001_012E + B23001_014E + B23001_019E + B23001_021E + B23001_026E + B23001_028E + B23001_033E + B23001_035E + B23001_040E + B23001_042E + B23001_047E + B23001_049E + B23001_054E + B23001_056E + B23001_061E + B23001_063E + B23001_068E + B23001_070E + B23001_075E + B23001_080E + B23001_085E,
+	  EmpFemale_State = B23001_091E + B23001_093E + B23001_098E + B23001_100E + B23001_105E + B23001_107E + B23001_112E + B23001_114E + B23001_119E + B23001_121E + B23001_126E + B23001_128E + B23001_133E + B23001_135E + B23001_140E + B23001_142E + B23001_147E + B23001_149E + B23001_154E + B23001_156E + B23001_161E + B23001_166E + B23001_171E,
+	  TotalEmp_state = EmpMale_State+EmpFemale_State,
+	  EmpMalePer = EmpMale_State/B23001_001E,
+	  EmpFemalePer = EmpFemale_State/B23001_001E) %>%
+	select(EmpMale_State, EmpFemale_State, TotalEmp_state, EmpMalePer, EmpFemalePer) %>%
+cbind(Emp.Sex.BG) 
+
+Each_State6 <- Emp.Sex.State
+```
+* The number of male workers in `r Each_State6$State[1]` is 378348 which is `r (round(Each_State6$EmpMalePer[1],2))*100`% of total number of workers.\
+* The number of female workers in `r Each_State6$State[1]` is 347499 which is `r (round(Each_State6$EmpFemalePer[1],2))*100`% of total number of workers.\
+
+\
+
+## Municipal Finances
+\
+
+\
+
+###	Revenue Streams
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+# GENERAL
+Each_State6$TotalRevenueFY19 <- 2507000000
+Each_State6$REVBusinessProfitTaxFY19 <- 411800000
+Each_State6$REVBusinessEnterpriseTaxFY19 <- 273400000
+Each_State6$REVMealsRentalsTaxFY19 <- 350800000
+Each_State6$REVCigaretteTaxFY19 <- 217200000
+Each_State6$REVAlcoholTaxFY19 <- 144000000
+Each_State6$REVInterestTaxFY19 <- 98900000
+Each_State6$REVInsuranceFY19 <-  120000000
+Each_State6$REVCommunicationFY19 <- 44300000
+Each_State6$REVRealStateFY19 <-  160100000
+Each_State6$REVCourtFY19 <- 13800000
+Each_State6$REVSecuritiesFY19 <-  46300000
+Each_State6$REVUtilityTaxFY19 <- 6000000
+Each_State6$REVBeerTaxFY19 <- 13200000
+Each_State6$REVOtherFY19 <- 80600000
+Each_State6$REVLotteryFY19 <- 75000000
+Each_State6$REVRacingGamingFY19 <- 2000000
+Each_State6$REVTobaccoSettlementFY19 <- 35000000
+Each_State6$REVUtilityPropertyTaxFY19 <- 42400000
+Each_State6$REVStatePropertyTaxFY19 <- 363100000
+Each_State6$REVMedicaidRecoveriesFY19 <- 9100000
+```
+* The total revenues for `r Each_State6$State[1]` is $2,507,000,000 in Fiscal Year 2019, which includes business profits tax with 411,800,000 Dollar, business enterprise tax with 273,400,000 Dollar, meals and rentals tax with 350,800,000 Dollar, tobacco tax with 217,200,000 Dollar, transfer from liquor commission with 144,000,000 Dollar, interest and dividends tax with 98,900,000 Dollar, insurance tax 120,000,000 Dollar, communications tax with 44,300,000 Dollar, real state transfer tax with 160,100,000 Dollar, court fines and fees with 13,800,000 Dollar, security revenue with 46,300,000 Dollar, utility tax with 6,000,000 Dollar, beer tax with 13,200,000 Dollar, other with 80,600,000 Dollar, transfers from lottery commission with 75,000,000 Dollar, transfers from racing and charitable gaming commission with 2,000,000 Dollar, tobacco settlement with 35,000,000 Dollar, utility property tax with 42,400,000 Dollar, state property tax with 363,100,000 Dollar, and medicaid recoveries with 9,100,000 Dollar.(https://das.nh.gov/budget)
+
+\
+
+###	Major Expense Drivers
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Each_State6$ExpendituresFY19 <- 1573148677
+Each_State6$EXGeneralGovernmentFY19 <- 289105719
+Each_State6$EXProtectionFY19 <- 289488535
+Each_State6$EXResourceProtectFY19 <- 38706817
+Each_State6$EXTransportationFY19 <- 1065264
+Each_State6$EXHumanServicesFY19 <- 743855002
+Each_State6$EXEducationFY19 <- 210927340
+```
+* The total amount of expenditures for `r Each_State6$State[1]` is $1,573,148,677 in Fiscal Year 2019 and the major expense driver is related to health and social services with 743,855,002 Dollar. Also, expenditures include education with 210,927,340 Dollar, general government with 289,105,719 Dollar, justice and public protection with 289,488,535 Dollar, resource protection and development with 38,706,817 Dollar, transportation with 1,065,264 Dollar.(https://das.nh.gov/budget)
+
+
+
+\
+
+## Food Insecurity
+\
+
+\
+
+### Snap Recipients
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##########################################################################################################################
+
+                                                #----------------------#
+                                                #    FOOD INSECURITY   #
+                                                #----------------------#
+
+####################################################  SNAP Recipients  ###################################################         
+
+# SNAP Recipients at Block Group level
+Snap.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B22001_002", # Household received Food Stamps/SNAP in the past 12 months
+														"B22001_001"), # Total 
+														keep_geo_vars = T) %>%
+	rename(BG_ID_10 = GEOID,
+	       SnapRec_BG = B22001_002E/B22001_001E) %>%
+	select(BG_ID_10, SnapRec_BG) %>%
+  left_join(Each_State6, Snap.BG, by="BG_ID_10")
+
+# SNAP Recipients at State level
+Snap.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B22001_002", # Household received Food Stamps/SNAP in the past 12 months
+														"B22001_001"), # Total 
+														keep_geo_vars = T) %>%
+	mutate(SnapRec_State = B22001_002E/B22001_001E) %>%
+	select(SnapRec_State) %>%
+  cbind(Snap.BG) 
+
+Each_State6 <- Snap.State 
+
+#######################################################################################################################################
+
+```
+* The percent of households, who received Food Stamps/SNAP in the past 12 months in `r Each_State6$State[1]` state is `r (round(Each_State6$SnapRec_State[1],2))*100`%.\
+
+\
+
+## Housing
+\
+
+### Proportion of Renters to Owners
+\
+
+### Home Values
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+                                                #----------------------#
+                                                #       HOUSING        #
+                                                #----------------------#
+
+######################   Proportion of Renters to Owners, Home Values   ########################################
+
+# Proportion of Renters to Owners and Home Values at Block Group level
+Housing.BG <- tidycensus::get_acs(geography = "block group",
+															 survey="acs5",
+															 state=i,
+															 year = endyr,
+															 output = "wide",
+															 variables = c("B25009_001", # Total Occupied Housing Units
+															 	"B25009_002", # Total Owner Occupied Housing Units
+															 	"B25009_010", # Total Renter Occupied Housing Units
+															 	"B25077_001", # Median Home Value
+															 	"B25082_001", # Aggregate value
+															 	"B25003_002"), # Owner occupied
+															 keep_geo_vars = T) %>%
+	rename(MedianHValue_BG = B25077_001E,
+	       AvgHValue_BG = B25082_001E / B25003_002E,
+				 BG_ID_10 = GEOID) %>%
+	mutate(RentersPer_BG = B25009_010E/B25009_001E,
+				 HomeOwnPer_BG = B25009_002E/B25009_001E,
+				 RentersToOwners_BG = B25009_010E/B25009_002E) %>%
+	select(BG_ID_10,RentersPer_BG, HomeOwnPer_BG, RentersToOwners_BG, MedianHValue_BG, AvgHValue_BG) %>%
+  left_join(Each_State6, Housing.BG, by="BG_ID_10")
+
+# Proportion of Renters to Owners and Home Values at State level
+Housing.State <- tidycensus::get_acs(geography = "state",
+															 survey="acs5",
+															 state=i,
+															 year = endyr,
+															 output = "wide",
+															 variables = c("B25009_001", # Total Occupied Housing Units
+															 	"B25009_002", # Total Owner Occupied Housing Units
+															 	"B25009_010", # Total Renter Occupied Housing Units
+															 	"B25077_001", # Median Home Value
+															 	"B25082_001", # Aggregate value
+															 	"B25003_002"), # Owner occupied
+															 keep_geo_vars = T) %>%
+	mutate(MedianHValue_State = B25077_001E,
+	       AvgHValue_State = B25082_001E / B25003_002E,
+	       RentersPer_State = B25009_010E/B25009_001E,
+				 HomeOwnPer_State = B25009_002E/B25009_001E,
+				 RentersToOwners_State = B25009_010E/B25009_002E) %>%
+	select(RentersPer_State, HomeOwnPer_State, RentersToOwners_State, MedianHValue_State, AvgHValue_State) %>%
+  cbind(Housing.BG) 
+
+Each_State6 <- Housing.State
+```
+* The median house value in `r Each_State6$State[1]` is 252800 Dollar.\
+
+* The average house value in `r Each_State6$State[1]` is 281671.7 Dollar.\
+
+* The proportion of renters to owners in `r Each_State6$State[1]` is `r round(Each_State6$RentersToOwners_State[1],2)`.\
+
+* The percentage of renters in `r Each_State6$State[1]` is `r (round(Each_State6$RentersPer_State[1],2))*100`%.\
+
+* The percentage of owners in `r Each_State6$State[1]` is `r (round(Each_State6$HomeOwnPer_State[1],2))*100`%.\
+
+Followed is the map of Proportion of Renters to Owners, Median Home Values, and Average Home Values of the state.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## MAP
+Housing.BG.NH <- tidycensus::get_acs(geography = "block group",
+															 survey="acs5",
+															 state=i,
+															 year = endyr,
+															 output = "wide",
+															 variables = c("B25009_001", # Total Occupied Housing Units
+															 	"B25009_002", # Total Owner Occupied Housing Units
+															 	"B25009_010", # Total Renter Occupied Housing Units
+															 	"B25077_001", # Median Home Value
+															 	"B25082_001", # Aggregate value
+															 	"B25003_002"), # Owner occupied
+															 keep_geo_vars = T, geometry = T) %>%
+	rename(MedianHValue_BG = B25077_001E,
+	       AvgHValue_BG = B25082_001E / B25003_002E,
+				 BG_ID_10 = GEOID) %>%
+	mutate(RentersPer_BG = B25009_010E/B25009_001E,
+				 HomeOwnPer_BG = B25009_002E/B25009_001E,
+				 RentersToOwners_BG = B25009_010E/B25009_002E) %>%
+	select(BG_ID_10,RentersPer_BG, HomeOwnPer_BG, RentersToOwners_BG, MedianHValue_BG, AvgHValue_BG)
+
+tm_shape(Housing.BG.NH) + tm_polygons("MedianHValue_BG" , palette="Blues", style = "quantile", title = "Median Home Value", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") + tm_layout(legend.position = c("left","top"))
+
+tm_shape(Housing.BG.NH) + tm_polygons("AvgHValue_BG" , palette="Greens", style = "quantile", title = "Average Home Value", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+tm_shape(Housing.BG.NH) + tm_polygons("RentersToOwners_BG" , palette="Reds", style = "jenks", title = "RentersToOwners") + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") + tm_layout(legend.position = c("left","top"))
+```
+
+
+### Duration of Occupancy
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#########################################      Duration of Occupancy    ####################################################
+# Duration of Occupancy at Block Group level
+Dur.Occ.BG <- tidycensus::get_acs(geography = "block group",
+															 survey="acs5",
+															 state=i,
+															 year = endyr,
+															 output = "wide",
+															 variables = c("B25039_001", # Median Year Householder Moved Into Unit by Tenure
+															 	"B25039_002", # Median Year Householder Moved Into Unit by Tenure (Owner)
+															 	"B25039_003"), # Median Year Householder Moved Into Unit by Tenure (Renter)
+															 keep_geo_vars = T) %>%
+	rename(MedYrMovedIn_BG = B25039_001E, # I'm not sure if I should substract this value from 2018
+				 MedYrRentMovedIn_BG = B25039_003E,
+				 MedYrOwnMovedIn_BG = B25039_002E,
+				 BG_ID_10 = GEOID) %>%
+	select(BG_ID_10, MedYrMovedIn_BG, MedYrRentMovedIn_BG, MedYrOwnMovedIn_BG) %>%
+  left_join(Each_State6, Dur.Occ.BG, by="BG_ID_10")
+
+# Duration of Occupancy at State level
+Dur.Occ.State <- tidycensus::get_acs(geography = "state",
+															 survey="acs5",
+															 state=i,
+															 year = endyr,
+															 output = "wide",
+															 variables = c("B25039_001", # Median Year Householder Moved Into Unit by Tenure
+															 	"B25039_002", # Median Year Householder Moved Into Unit by Tenure (Owner)
+															 	"B25039_003"), # Median Year Householder Moved Into Unit by Tenure (Renter)
+															 keep_geo_vars = T) %>%
+	mutate(MedYrMovedIn_State = B25039_001E, # I'm not sure if I should substract this value from 2018
+				 MedYrRentMovedIn_State = B25039_003E,
+				 MedYrOwnMovedIn_State = B25039_002E) %>%
+	select(MedYrMovedIn_State, MedYrRentMovedIn_State, MedYrOwnMovedIn_State) %>%
+ cbind(Dur.Occ.BG) 
+
+Each_State6 <- Dur.Occ.State
+
+```
+* The median year that a homeowner moved into their current domicile in `r Each_State6$State[1]` is `r Each_State6$MedYrOwnMovedIn_State[1]`.\
+* The median year that a renter moved into their current domicile in `r Each_State6$State[1]` is `r Each_State6$MedYrRentMovedIn_State[1]`.\
+Followed is the map of Duration of Occupancy of the state.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## MAP
+Dur.Occ.BG.NH <- tidycensus::get_acs(geography = "block group",
+															 survey="acs5",
+															 state=i,
+															 year = endyr,
+															 output = "wide",
+															 variables = c("B25039_001", # Median Year Householder Moved Into Unit by Tenure
+															 	"B25039_002", # Median Year Householder Moved Into Unit by Tenure (Owner)
+															 	"B25039_003"), # Median Year Householder Moved Into Unit by Tenure (Renter)
+															 keep_geo_vars = T, geometry = T) %>%
+	rename(MedYrMovedIn_BG = B25039_001E, # I'm not sure if I should substract this value from 2018
+				 MedYrRentMovedIn_BG = B25039_003E,
+				 MedYrOwnMovedIn_BG = B25039_002E,
+				 BG_ID_10 = GEOID) %>%
+  select(BG_ID_10, MedYrMovedIn_BG, MedYrRentMovedIn_BG, MedYrOwnMovedIn_BG)
+
+tm_shape(Dur.Occ.BG.NH) + tm_polygons(c("MedYrMovedIn_BG","MedYrRentMovedIn_BG","MedYrOwnMovedIn_BG"), style="jenks", palette=list("Greens","seq","Blues"), border.col = "darkgray", title=c("MedYrMovedIn","MedYrRentMovedIn","MedYrOwnMovedIn")) + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+```
+
+
+\
+
+### Cost Burdened Occupants
+
+
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##############################################   Cost Burdened Occupants   ##################################
+# Cost Burdened Occupants at Block Group level
+CostBurdened.BG <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B25095_006", # Household income by selected monthly owner Costs as a percentage of household income
+														              # Less than $10,000 (30 to 34.9 percent)
+														              "B25095_007", # Less than $10,000 (35 to 39.9 percent)
+														              "B25095_008", # Less than $10,000 (40 to 49.9 percent)
+														              "B25095_009", # Less than $10,000 (50 percent or more)
+														              "B25095_015", # $10,000 to $19,999 (30 to 34.9 percent)
+														              "B25095_016", # $10,000 to $19,999 (35 to 39.9 percent)
+														              "B25095_017", # $10,000 to $19,999 (40 to 49.9 percent)
+														              "B25095_018", # $10,000 to $19,999 (50 percent or more)
+														              "B25095_024", # $20,000 to $34,999 (30 to 34.9 percent)
+														              "B25095_025", # $20,000 to $34,999 (35 to 39.9 percent)
+														              "B25095_026", # $20,000 to $34,999 (40 to 49.9 percent)
+														              "B25095_027", # $20,000 to $34,999 (50 percent or more)
+														              "B25095_033", # $35,000 to $49,999 (30 to 34.9 percent)
+														              "B25095_034", # $35,000 to $49,999 (35 to 39.9 percent)
+														              "B25095_035", # $35,000 to $49,999 (40 to 49.9 percent)
+														              "B25095_036", # $35,000 to $49,999 (50 percent or more)
+														              "B25095_042", # $50,000 to $74,999 (30 to 34.9 percent)
+														              "B25095_043", # $50,000 to $74,999 (35 to 39.9 percent)
+														              "B25095_044", # $50,000 to $74,999 (40 to 49.9 percent)
+														              "B25095_045", # $50,000 to $74,999 (50 percent or more)
+														              "B25095_051", # $75,000 to $99,999 (30 to 34.9 percent)
+														              "B25095_052", # $75,000 to $99,999 (35 to 39.9 percent)
+														              "B25095_053", # $75,000 to $99,999 (40 to 49.9 percent)
+														              "B25095_054", # $75,000 to $99,999 (50 percent or more)
+														              "B25095_060", # $100,000 to $149,999 (30 to 34.9 percent)
+														              "B25095_061", # $100,000 to $149,999 (35 to 39.9 percent)
+														              "B25095_062", # $100,000 to $149,999 (40 to 49.9 percent)
+														              "B25095_063", # $100,000 to $149,999 (50 percent or more)
+														              "B25095_069", # $150,000 or more (30 to 34.9 percent)
+														              "B25095_070", # $150,000 or more (35 to 39.9 percent)
+														              "B25095_071", # $150,000 or more (40 to 49.9 percent)
+														              "B25095_072", # $150,000 or more (50 percent or more)
+														              "B25095_001"), # Total 
+														keep_geo_vars = T) %>% rename(BG_ID_10 = GEOID) %>%
+	mutate(CostBurdened_BG = B25095_006E+B25095_007E+B25095_008E+B25095_009E+B25095_015E+B25095_016E+B25095_017E+B25095_018E+
+	       B25095_024E+B25095_025E+B25095_026E+B25095_027E+B25095_033E+B25095_034E+B25095_035E+B25095_036E+B25095_042E+B25095_043E+B25095_044E+B25095_045E+B25095_051E+B25095_052E+B25095_053E+B25095_054E+B25095_060E+B25095_061E+B25095_062E+B25095_063E+B25095_069E+B25095_070E+B25095_071E+B25095_072E) %>%
+	select(BG_ID_10, CostBurdened_BG) %>%
+  left_join(Each_State6, CostBurdened.BG, by="BG_ID_10")
+
+# Cost Burdened Occupants at State level
+CostBurdened.State <- tidycensus::get_acs(geography = "state",
+														survey="acs5",
+														state=i,
+														year = endyr,
+														output = "wide",
+														variables = c("B25095_006", # Household income by selected monthly owner Costs as a percentage of household income
+														              # Less than $10,000 (30 to 34.9 percent)
+														              "B25095_007", # Less than $10,000 (35 to 39.9 percent)
+														              "B25095_008", # Less than $10,000 (40 to 49.9 percent)
+														              "B25095_009", # Less than $10,000 (50 percent or more)
+														              "B25095_015", # $10,000 to $19,999 (30 to 34.9 percent)
+														              "B25095_016", # $10,000 to $19,999 (35 to 39.9 percent)
+														              "B25095_017", # $10,000 to $19,999 (40 to 49.9 percent)
+														              "B25095_018", # $10,000 to $19,999 (50 percent or more)
+														              "B25095_024", # $20,000 to $34,999 (30 to 34.9 percent)
+														              "B25095_025", # $20,000 to $34,999 (35 to 39.9 percent)
+														              "B25095_026", # $20,000 to $34,999 (40 to 49.9 percent)
+														              "B25095_027", # $20,000 to $34,999 (50 percent or more)
+														              "B25095_033", # $35,000 to $49,999 (30 to 34.9 percent)
+														              "B25095_034", # $35,000 to $49,999 (35 to 39.9 percent)
+														              "B25095_035", # $35,000 to $49,999 (40 to 49.9 percent)
+														              "B25095_036", # $35,000 to $49,999 (50 percent or more)
+														              "B25095_042", # $50,000 to $74,999 (30 to 34.9 percent)
+														              "B25095_043", # $50,000 to $74,999 (35 to 39.9 percent)
+														              "B25095_044", # $50,000 to $74,999 (40 to 49.9 percent)
+														              "B25095_045", # $50,000 to $74,999 (50 percent or more)
+														              "B25095_051", # $75,000 to $99,999 (30 to 34.9 percent)
+														              "B25095_052", # $75,000 to $99,999 (35 to 39.9 percent)
+														              "B25095_053", # $75,000 to $99,999 (40 to 49.9 percent)
+														              "B25095_054", # $75,000 to $99,999 (50 percent or more)
+														              "B25095_060", # $100,000 to $149,999 (30 to 34.9 percent)
+														              "B25095_061", # $100,000 to $149,999 (35 to 39.9 percent)
+														              "B25095_062", # $100,000 to $149,999 (40 to 49.9 percent)
+														              "B25095_063", # $100,000 to $149,999 (50 percent or more)
+														              "B25095_069", # $150,000 or more (30 to 34.9 percent)
+														              "B25095_070", # $150,000 or more (35 to 39.9 percent)
+														              "B25095_071", # $150,000 or more (40 to 49.9 percent)
+														              "B25095_072", # $150,000 or more (50 percent or more)
+														              "B25095_001"), # Total 
+														keep_geo_vars = T) %>% 
+	mutate(CostBurdened_State = B25095_006E+B25095_007E+B25095_008E+B25095_009E+B25095_015E+B25095_016E+B25095_017E+B25095_018E+
+	       B25095_024E+B25095_025E+B25095_026E+B25095_027E+B25095_033E+B25095_034E+B25095_035E+B25095_036E+B25095_042E+B25095_043E+B25095_044E+B25095_045E+B25095_051E+B25095_052E+B25095_053E+B25095_054E+B25095_060E+B25095_061E+B25095_062E+B25095_063E+B25095_069E+B25095_070E+B25095_071E+B25095_072E,
+	      CostBurdenedPer =  (B25095_006E+B25095_007E+B25095_008E+B25095_009E+B25095_015E+B25095_016E+B25095_017E+B25095_018E+
+	       B25095_024E+B25095_025E+B25095_026E+B25095_027E+B25095_033E+B25095_034E+B25095_035E+B25095_036E+B25095_042E+B25095_043E+B25095_044E+B25095_045E+B25095_051E+B25095_052E+B25095_053E+B25095_054E+B25095_060E+B25095_061E+B25095_062E+B25095_063E+B25095_069E+B25095_070E+B25095_071E+B25095_072E)/ B25095_001E) %>%
+	select(CostBurdened_State, CostBurdenedPer) %>%
+ cbind(CostBurdened.BG) 
+
+Each_State6 <- CostBurdened.State
+```
+* The number of households, who spend 30 percent or more on housing costs in `r Each_State6$State[1]` is 97067 which is `r (round(Each_State6$CostBurdenedPer[1],3))*100`% of total number of households, who spend money on housing costs.\
+
+
+
+
+```{r}
+Each_State6
+Vars <- select(Each_State6, c("CostBurdened_State","CostBurdenedPer","MedYrMovedIn_State","MedYrRentMovedIn_State","MedYrOwnMovedIn_State","RentersPer_State","HomeOwnPer_State","RentersToOwners_State","MedianHValue_State","AvgHValue_State","SnapRec_State","EmpMale_State","EmpFemale_State","TotalEmp_state","EmpMalePer","EmpFemalePer","LessThanHSLabor_State","HSGradLabor_State","SomeCollLabor_State","BachOrHigherLabor_State","LessThanHSLaborPer","SomeCollLaborPer","BachOrHigherLaborPer","HSGradLaborPer","WhiteEmp_State","BlackEmp_State","AsianEmp_State","HispanicEmp_State","TwoOrMoreEmp_State","WhiteEmpPer_State","BlackEmpPer_State","AsianEmpPer_State","HispanicEmpPer_State","TwoOrMoreEmpPer_State","AgeEmpU29_State","AgeEmp3054_State","AgeEmpO55_State","AgeEmpU29Per_State","AgeEmp3054Per_State","AgeEmpO55Per_State","MedEarning_State","Agriculture_State","Construction_State","Manufacturing_State","WholesaleTrade_State","RetailTrade_State","Transportation_State","Information_State","Finance_Ins_State","Professional_State","Educ_Health_SocSvcs_State","RecreationEtc_State","OtherIndustries_State","PublicAdmin_State","MaleNCAIS_State","FemaleNCAIS_State","MaleNCAISPer_State","FemaleNCAISPer_State","EmpRate_State","UnempRate_State","EmployedCLF_State","UnemployedCLF_State","LabForce_State","LabForcePer_State","CivLabForce_State","CivLabForcePer_State","Military_State","MilitaryPer_State","TotalWorkers_State","WorkStateCounty_State","WorkStateCountyPer_State","WorkPlace_State","WorkPlacePer_State","NumJobs_State","EnrolPK12_State","OldAlonePer_State","FamPovPer_State","PopPovPer_State","TotalPopPov_State","FemHeadPer_State","MaleHeadPer_State","LessThanHS_State","HSGrad_State","SomeColl_State","Bach_State","Master_State","Prof_State","Doc_State","LessThanHSPer_State","HSGradPer_State","SomeCollPer_State","BachPer_State","MasterPer_State","ProfPer_State","DocPer_State", "AveHouseH_State","Female_State","Male_State","SexRatio_State","White_State", "Black_State","Asian_State","Hispanic_State","TwoOrMore_State","MedHouseIncome_State","AgeU18_State","Age1834_State","Age3564_State","AgeO65_State","State","TotalPop_State","AgeU18Per_State","Age1834Per_State","Age3564Per_State","AgeO65Per_State","WhitePer_State","BlackPer_State","AsianPer_State","HispanicPer_State","TwoOrMorePer_State","FemalePer_State","MalePer_State","SchoolsDistrict","PubSchools","PvSchools","NumUni","TotalRevenueFY19", "REVBusinessProfitTaxFY19","REVBusinessEnterpriseTaxFY19","REVMealsRentalsTaxFY19","REVCigaretteTaxFY19","REVAlcoholTaxFY19","REVAlcoholTaxFY19","REVInterestTaxFY19","REVInsuranceFY19","REVCommunicationFY19","REVRealStateFY19","REVCourtFY19","REVSecuritiesFY19","REVUtilityTaxFY19","REVBeerTaxFY19","REVOtherFY19","REVLotteryFY19","REVRacingGamingFY19","REVTobaccoSettlementFY19","REVUtilityPropertyTaxFY19","REVStatePropertyTaxFY19","REVMedicaidRecoveriesFY19","ExpendituresFY19","EXGeneralGovernmentFY19","EXProtectionFY19","EXResourceProtectFY19","EXProtectionFY19","EXResourceProtectFY19","EXTransportationFY19","EXHumanServicesFY19","EXEducationFY19"))
+MA.Vars <- Vars[1,]
+
+MA.Vars <- as.data.frame(t(as.matrix(MA.Vars)))
+setDT(MA.Vars, keep.rownames = TRUE)[]
+names(MA.Vars)[1] <- 'Indicators'
+names(MA.Vars)[2] <- "New Hampshire State"
+MA.Vars
+```
+
+
+
+
+
+
+
+
+
+
+

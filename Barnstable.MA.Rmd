@@ -1,0 +1,1853 @@
+---
+title: "Municipal Indicators For Barnstable, MA"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  html_notebook:
+    toc: yes
+    toc_depth: 3
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '3'
+---
+
+In this report, 41 demographic, educational institutions, employment, healthcare, municipal finance, infrastructure, food insecurity and housing variables are presented using federally-published data sources for the city of Barnstable, MA. To better demonstrate their ties to geography of the city, the variables have been mapped on the block group level. \
+
+
+## Demographic
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+                                 #######################################################
+                                 #       Municipal Indicators For Municipalities        #               
+                                 #######################################################
+library(stringr)
+library(tidycensus)
+library(tidyverse)
+library(tigris)
+library(totalcensus)
+
+options(tigris_class = "sf",tigris_use_cache = T)
+# Get API key 
+# census_api_key("045944708d514a404443c9f2d227ac8bf6a8f8bd", install = TRUE, overwrite=TRUE)
+# Specify the end year 
+# This is for 5-year estimates
+endyr <- 2018
+# List of ACS variables
+Var_List <- tidycensus::load_variables(year = endyr, dataset = "acs5", cache = T)
+# View(Var_List)
+```
+
+
+\
+
+
+### Population  Size
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+                                             #--------------------#
+                                             #    DEMOGRAPHIC     #
+                                             #--------------------#
+
+##############################################    Population  Size    ###########################################################
+library(tidyverse)
+# set_path_to_census("C:\\Users\\ux305\\Desktop\\census")
+# search_fips()
+ba.pop <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = "B01003_001",
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+				 rename(TotalPop = population,
+				        City = NAME) %>% select(City, TotalPop)
+
+Barnstable.MA <- cbind(ba.pop)
+
+ba.MA.Pop <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = "B01003_001",
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+
+ba.Pop.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county="Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = "B01003_001", # Total Population
+													 keep_geo_vars = T, geometry = TRUE)
+
+Barnstable <- merge(ba.Pop.get, ba.MA.Pop, by.x = 'NAME.y', by.y='NAME')
+```
+
+
+The total population of `r Barnstable.MA$City` is `r Barnstable.MA$TotalPop`. Followed is the population size map of the city.\
+\
+
+```{r , echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+## MAP
+library(tmap)
+tm_shape(Barnstable) + tm_polygons('B01003_001E' , palette="seq", style = "fixed", breaks=c(0,712,1099,1654,2663), title = "Total Population")  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray")
+```
+\
+
+
+### Population Age
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##############################################    Population  Age   #############################################################
+MA.Age.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B01001_003","B01001_004","B01001_005","B01001_006",
+													 							"B01001_027","B01001_028","B01001_029","B01001_030", # Under 5 years; Between 5 to 17
+													 							"B01001_007","B01001_008","B01001_009",
+													 							"B01001_010","B01001_011","B01001_012",
+													 							"B01001_036","B01001_035","B01001_034",
+													 							"B01001_033","B01001_032","B01001_031", # 18 to 24 years; 25 to 34 years
+													 							"B01001_013","B01001_014","B01001_015",
+													 							"B01001_016","B01001_017","B01001_018","B01001_019",
+													 							"B01001_043","B01001_042","B01001_041","B01001_040",
+													 							"B01001_039","B01001_038","B01001_037", # 35 to 44 years; 45 to 54 years; 55 to 59 years; 60 to 64 years
+													 							"B01001_020","B01001_021","B01001_022",
+													 							"B01001_023","B01001_024","B01001_025",
+													 							"B01001_044","B01001_045","B01001_046",
+													 							"B01001_047","B01001_048","B01001_049","B01003_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+				 mutate(AgeU18 = B01001_003+B01001_004+B01001_005+B01001_006+B01001_027+B01001_028+B01001_029+B01001_030, 
+				 Age1834 = B01001_007+B01001_008+B01001_009+B01001_010+B01001_011+B01001_012+B01001_036+B01001_035+B01001_034+B01001_033+B01001_032+B01001_031,
+				 Age3564 = B01001_013+B01001_014+B01001_015+B01001_016+B01001_017+B01001_018+B01001_019+B01001_043+B01001_042+B01001_041+B01001_040+B01001_039+B01001_038+B01001_037,
+				 AgeO65 = B01001_020+B01001_021+B01001_022+B01001_023+B01001_024+B01001_025+B01001_044+B01001_045+B01001_046+B01001_047+B01001_048+B01001_049) %>%
+  	mutate(AgeU18Per = AgeU18/population,
+				 Age1834Per = Age1834/population,
+				 Age3564Per = Age3564/population,
+				 AgeO65Per = AgeO65/population) %>%
+select(AgeU18,Age1834,Age3564,AgeO65,AgeU18Per,Age1834Per,Age3564Per,AgeO65Per, City) %>%
+  left_join(Barnstable.MA, MA.Age.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Age.ba)
+```
+* The number of people, who are younger than 18 Years old is `r Barnstable.MA$AgeU18` in `r Barnstable.MA$City` 
+, which is `r (round(Barnstable.MA$AgeU18Per,4))*100`% of total population in `r Barnstable.MA$City`. \
+* The number of people, who are between 18 and 34 years old is `r Barnstable.MA$Age1834` in `r Barnstable.MA$City`, which is `r (round(Barnstable.MA$Age1834Per,4))*100`% of total population in `r Barnstable.MA$City`.\
+* The number of people, who are between 35 and 64 years old is `r Barnstable.MA$Age3564` in `r Barnstable.MA$City`, which is `r (round(Barnstable.MA$Age3564Per,4))*100`% of total population in `r Barnstable.MA$City`.\
+* The number of people, who are older than 65 years old is `r Barnstable.MA$AgeO65` in `r Barnstable.MA$City`, which is `r (round(Barnstable.MA$AgeO65Per,4))*100`% of total population in `r Barnstable.MA$City`.\
+
+Followed is the population age map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## Map
+
+ba.MA.Age <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B01001_003","B01001_004","B01001_005","B01001_006",
+													 							"B01001_027","B01001_028","B01001_029","B01001_030", # Under 5 years; Between 5 to 17
+													 							"B01001_007","B01001_008","B01001_009",
+													 							"B01001_010","B01001_011","B01001_012",
+													 							"B01001_036","B01001_035","B01001_034",
+													 							"B01001_033","B01001_032","B01001_031", # 18 to 24 years; 25 to 34 years
+													 							"B01001_013","B01001_014","B01001_015",
+													 							"B01001_016","B01001_017","B01001_018","B01001_019",
+													 							"B01001_043","B01001_042","B01001_041","B01001_040",
+													 							"B01001_039","B01001_038","B01001_037", # 35 to 44 years; 45 to 54 years; 55 to 59 years; 60 to 64 years
+													 							"B01001_020","B01001_021","B01001_022",
+													 							"B01001_023","B01001_024","B01001_025",
+													 							"B01001_044","B01001_045","B01001_046",
+													 							"B01001_047","B01001_048","B01001_049","B01003_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.age.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_003","B01001_004","B01001_005","B01001_006",
+													 							"B01001_027","B01001_028","B01001_029","B01001_030", # Under 5 years; Between 5 to 17
+													 							"B01001_007","B01001_008","B01001_009",
+													 							"B01001_010","B01001_011","B01001_012",
+													 							"B01001_036","B01001_035","B01001_034",
+													 							"B01001_033","B01001_032","B01001_031", # 18 to 24 years; 25 to 34 years
+													 							"B01001_013","B01001_014","B01001_015",
+													 							"B01001_016","B01001_017","B01001_018","B01001_019",
+													 							"B01001_043","B01001_042","B01001_041","B01001_040",
+													 							"B01001_039","B01001_038","B01001_037", # 35 to 44 years; 45 to 54 years; 55 to 59 years; 60 to 64 years
+													 							"B01001_020","B01001_021","B01001_022",
+													 							"B01001_023","B01001_024","B01001_025",
+													 							"B01001_044","B01001_045","B01001_046",
+													 							"B01001_047","B01001_048","B01001_049","B01003_001"), # Total Population
+													 keep_geo_vars = T, geometry = TRUE) %>%
+mutate(AgeU18 = B01001_003E+B01001_004E+B01001_005E+B01001_006E+B01001_027E+B01001_028E+B01001_029E+B01001_030E, 
+				 Age1834 = B01001_007E+B01001_008E+B01001_009E+B01001_010E+B01001_011E+B01001_012E+B01001_036E+B01001_035E+B01001_034E+B01001_033E+B01001_032E+B01001_031E,
+				 Age3564 = B01001_013E+B01001_014E+B01001_015E+B01001_016E+B01001_017E+B01001_018E+B01001_019E+B01001_043E+B01001_042E+B01001_041E+B01001_040E+B01001_039E+B01001_038E+B01001_037E,
+				 AgeO65 = B01001_020E+B01001_021E+B01001_022E+B01001_023E+B01001_024E+B01001_025E+B01001_044E+B01001_045E+B01001_046E+B01001_047E+B01001_048E+B01001_049E)  %>%
+  rename(AgeU18_BG = AgeU18,
+				 Age1834_BG = Age1834,
+				 Age3564_BG = Age3564,
+				 AgeO65_BG = AgeO65) %>%
+	mutate(AgeU18Per_BG = ((AgeU18_BG/B01003_001E)*100),
+				 Age1834Per_BG = ((Age1834_BG/B01003_001E)*100),
+				 Age3564Per_BG = ((Age3564_BG/B01003_001E)*100),
+				 AgeO65Per_BG = ((AgeO65_BG/B01003_001E)*100))  
+
+Barnstable.age <- merge(ba.age.get, ba.MA.Age, by.x = 'NAME.y', by.y='NAME')
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+ 
+
+tm_shape(Barnstable.age) + tm_polygons(c('AgeU18Per_BG','Age1834Per_BG',"Age3564Per_BG","AgeO65Per_BG") , palette=list("Oranges", "Greens", "Blues", "Purples") ,style = "quantile", title = c('AgeU18','Age1834',"Age3564","AgeO65"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent))  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) 
+
+```
+\
+
+### Median Household Income
+\
+
+```{r  echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#################################################    Median Household Income    ##############################################################
+
+MA.MHI.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = "B19013_001",
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+				 rename(MedHouseIncome = B19013_001,
+				        City = NAME) %>% 
+	select(City, MedHouseIncome) %>%
+  left_join(Barnstable.MA, MA.MHI.ba, by="City")
+Barnstable.MA <- cbind(MA.MHI.ba)
+```
+* The median household income in the past 12 months is 68919 Dollar in `r Barnstable.MA$City`.\
+Followed is the Median Household Income map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## MAP
+ba.MA.income <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = "B19013_001",
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.income.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = "B19013_001", 
+													 keep_geo_vars = T, geometry = TRUE) 
+
+Barnstable.income <- merge(ba.income.get, ba.MA.income, by.x = 'NAME.y', by.y='NAME')
+
+make_dollar <- function(x, digits = 0) {
+  paste0("$", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+library(tmap)
+tm_shape(Barnstable.income) + tm_polygons('B19013_001E' , palette="Blues", style="jenks", title = "Median Household Income", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar))  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) 
+```
+
+\
+
+### Racial Breakdown 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##############################################      Racial Breakdown     ###################################################################
+MA.Race.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B03002_003", # white alone
+																					"B03002_004", # black or African American alone
+																					"B03002_006", # Asian alone
+																					"B03002_012", # Hispanic or Latino alone
+																					"B03002_009"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+				 rename(White = B03002_003,
+				 Black = B03002_004,
+				 Asian = B03002_006,
+				 Hispanic = B03002_012,
+				 TwoOrMore = B03002_009,
+				 City = NAME) %>% 
+  mutate(WhitePer = (White/population),
+         BlackPer = (Black/population),
+         AsianPer = (Asian/population),
+         HispanicPer = (Hispanic/population),
+         TwoOrMorePer = (TwoOrMore/population)) %>%
+	select(City, White, Black, Asian, Hispanic, TwoOrMore,
+	       WhitePer, BlackPer, AsianPer, HispanicPer, TwoOrMorePer) %>%
+  left_join(Barnstable.MA, MA.Race.ba, by="City")
+Barnstable.MA <- cbind(MA.Race.ba)
+
+```
+* The number of people who are white in `r Barnstable.MA$City` is `r Barnstable.MA$White` which is `r (round(Barnstable.MA$WhitePer,4))*100`% of total population in `r Barnstable.MA$City`.\
+* The number of people who are black in `r Barnstable.MA$City` is `r Barnstable.MA$Black` which is `r (round(Barnstable.MA$BlackPer,4))*100`% of total population in `r Barnstable.MA$City`.\
+* The number of people who are asian in `r Barnstable.MA$City` is `r Barnstable.MA$Asian` which is `r (round(Barnstable.MA$AsianPer,4))*100`% of total population in `r Barnstable.MA$City`.\
+* The number of people who are hispanic in `r Barnstable.MA$City` is `r Barnstable.MA$Hispanic` which is `r (round(Barnstable.MA$HispanicPer,4))*100`% of total population in `r Barnstable.MA$City`.\
+* The number of people who are have two or more races in `r Barnstable.MA$City` is `r Barnstable.MA$TwoOrMore` which is `r (round(Barnstable.MA$TwoOrMorePer,4))*100`% of total population in `r Barnstable.MA$City`. \
+Followed is the Racial Breakdown map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## Map
+ba.MA.race <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B03002_003", # white alone
+																					"B03002_004", # black or African American alone
+																					"B03002_006", # Asian alone
+																					"B03002_012", # Hispanic or Latino alone
+																					"B03002_009",
+																					"B01003_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.race.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B03002_003", # white alone
+																					"B03002_004", # black or African American alone
+																					"B03002_006", # Asian alone
+																					"B03002_012", # Hispanic or Latino alone
+																					"B03002_009",
+																					"B01003_001"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+rename(White_BG = B03002_003E,
+				 Black_BG = B03002_004E,
+				 Asian_BG = B03002_006E,
+				 Hispanic_BG = B03002_012E,
+				 TwoOrMore_BG = B03002_009E) %>%
+  mutate(WhitePer_BG = (White_BG/B01003_001E)*100,
+         BlackPer_BG = (Black_BG/B01003_001E)*100,
+         AsianPer_BG = (Asian_BG/B01003_001E)*100,
+         HispanicPer_BG = (Hispanic_BG/B01003_001E)*100,
+         TwoOrMorePer_BG = (TwoOrMore_BG/B01003_001E)*100) 
+
+Barnstable.race <- merge(ba.race.get, ba.MA.race, by.x = 'NAME.y', by.y='NAME')
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+ 
+library(tmap)
+tm_shape(Barnstable.race) + tm_polygons(c("WhitePer_BG", "BlackPer_BG", "AsianPer_BG", "HispanicPer_BG", "TwoOrMorePer_BG") , palette=list("Oranges", "Greens", "Blues", "Purples", "Reds"), style = "quantile", title = c("White", "Black", "Asian","Hispanic", "TwoOrMore"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent))  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) 
+
+```
+
+\
+
+
+### Gender Breakdown
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#####################################################    Gender Breakdown    #############################################################
+
+MA.Sex.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B01001_026",
+													               "B01001_002"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  mutate(SexRatio = B01001_026/B01001_002) %>%
+  rename(Female = B01001_026,
+				 Male = B01001_002,
+				 City = NAME) %>%
+  mutate(FemalePer = Female/population,
+				 MalePer = Male/population) %>% 
+	select(City, SexRatio, Female, Male, FemalePer, MalePer) %>%
+  left_join(Barnstable.MA, MA.Sex.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Sex.ba)
+
+```
+* The number of females in `r Barnstable.MA$City` is `r Barnstable.MA$Female` which is `r 100*(round(Barnstable.MA$FemalePer,2))`% of total population in `r Barnstable.MA$City`.\
+* The number of males in `r Barnstable.MA$City` is `r Barnstable.MA$Male` which is `r 100*(round(Barnstable.MA$MalePer,2))`% of total population in `r Barnstable.MA$City`.\
+* The ratio of number of females to males in `r Barnstable.MA$City` is `r Barnstable.MA$SexRatio`.\
+Followed is the Gender Breakdown map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ba.MA.sex <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B01001_026",
+													               "B01001_002",
+													               "B01003_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.sex.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_026",
+													               "B01001_002",
+													               "B01003_001"), 
+													 keep_geo_vars = T, geometry = TRUE)  %>%
+mutate(SexRatio = B01001_026E/B01001_002E) %>%
+  rename(Female = B01001_026E,
+				 Male = B01001_002E) %>%
+  mutate(FemalePer = (Female/B01003_001E)*100,
+         MalePer = (Male/B01003_001E)*100)
+
+Barnstable.sex <- merge(ba.sex.get, ba.MA.sex, by.x = 'NAME.y', by.y='NAME')
+
+library(tmap)
+tm_shape(Barnstable.sex) + tm_polygons(c('Female', 'Male'), palette=list("Purples", "Reds"), title = c("Female","Male"))  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray")+ tmap_options(show.messages = FALSE) 
+```
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+tm_shape(Barnstable.sex) + tm_polygons(c('FemalePer', 'MalePer'), palette=list("Blues", "Oranges"), title = c("Female","Male"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent)) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray")+ tmap_options(show.messages = FALSE) 
+```
+\
+
+
+
+
+\
+
+### Average Household Size
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#################################################    Average Household Size    ############################################################
+
+MA.AveHH.Size.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B11002_001", 
+															         "B19001_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(AveHouseH = B11002_001/B19001_001) %>%
+	select(City, AveHouseH) %>%
+  left_join(Barnstable.MA, MA.AveHH.Size.ba, by="City")
+
+Barnstable.MA <- cbind(MA.AveHH.Size.ba)
+
+```
+* The average household size is `r round(Barnstable.MA$AveHouseH, 2)` in `r Barnstable.MA$City`.\
+Followed is the Average Household Size map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+
+ba.MA.HH.Size <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B11002_001", # Household type by relatives and nonrelatives for population in households
+															              "B19001_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.HH.Size.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B11002_001", # Household type by relatives and nonrelatives for population in households
+															              "B19001_001"), 
+													 keep_geo_vars = T, geometry = TRUE)  %>%
+  mutate(AveHouseH = B11002_001E/B19001_001E) 
+
+Barnstable.HH.Size <- merge(ba.HH.Size.get, ba.MA.HH.Size, by.x = 'NAME.y', by.y='NAME')
+
+
+tm_shape(Barnstable.HH.Size) + tm_polygons("AveHouseH", style = "quantile", palette="Purples", border.col = "darkgray", title="Ave Household Size") + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite") + tmap_options(show.messages = FALSE)
+
+```
+
+\
+
+### Educational Attainment
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################   Educational Attainment    ##################################################################
+MA.Educ.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B15002_001", # variables for Sex by Edu Attainment for Population 25 yrs or Over
+																					"B15002_003","B15002_004","B15002_005",
+																					"B15002_006","B15002_007","B15002_008","B15002_009","B15002_010",
+																					"B15002_020","B15002_021","B15002_022","B15002_023","B15002_024",
+																					"B15002_025","B15002_026","B15002_027",
+																					"B15002_011","B15002_028",
+																					"B15002_012","B15002_013","B15002_014",
+																					"B15002_029","B15002_030","B15002_031",
+																					"B15002_015","B15002_032",
+																					"B15002_016","B15002_033",
+																					"B15002_017","B15002_034",
+																					"B15002_018","B15002_035"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(LessThanHS = (B15002_003+B15002_004+B15002_005+B15002_006+B15002_007+B15002_008+B15002_009+B15002_010+B15002_020+B15002_021+B15002_022+B15002_023+B15002_024+B15002_025+B15002_026+B15002_027),
+				 HSGrad = (B15002_011 + B15002_028),
+				 SomeColl = (B15002_012+ B15002_013 + B15002_014 + B15002_029 + B15002_030 + B15002_031),
+				 Bach = (B15002_015 + B15002_032),
+				 Master = (B15002_016 + B15002_033),
+				 Prof = (B15002_017 + B15002_034),
+				 Doc = (B15002_018 + B15002_035),
+				 LessThanHSPer = (LessThanHS/population),
+         HSGradPer = (HSGrad/population),
+         SomeCollPer = (SomeColl/population),
+         BachPer = (Bach/population),
+         MasterPer = (Master/population),
+         ProfPer = (Prof/population),            
+         DocPer = (Doc/population)) %>%
+	select(City, LessThanHS, HSGrad, SomeColl, Bach, Master, Prof, Doc,
+	       LessThanHSPer, HSGradPer, SomeCollPer, BachPer, MasterPer, ProfPer, DocPer) %>% 
+  left_join(Barnstable.MA, MA.Educ.ba, by="City") 
+
+Barnstable.MA <- cbind(MA.Educ.ba)
+```
+* The number of people, who have less than high school degree is `r Barnstable.MA$LessThanHS` in `r Barnstable.MA$City` which is `r (round(Barnstable.MA$LessThanHSPer,4))*100`% of the population who are 25 years old or older in `r Barnstable.MA$City`.\
+* The number of people, who have high school degree is `r  Barnstable.MA$HSGrad` in `r Barnstable.MA$City` which is `r (round(Barnstable.MA$HSGradPer,4))*100`% of the population who are 25 years old or older in `r Barnstable.MA$City`.\
+* The number of people, who have some college degree is `r Barnstable.MA$SomeColl` in `r Barnstable.MA$City` which is `r (round(Barnstable.MA$SomeCollPer,4))*100`% of the population who are 25 years old or older in `r Barnstable.MA$City`.\
+* The number of people, who have bachelor degree is `r Barnstable.MA$Bach` in `r Barnstable.MA$City` which is `r (round(Barnstable.MA$BachPer,4))*100`% of the population who are 25 years old or older in `r Barnstable.MA$City`.\
+* The number of people, who have master's degree is `r Barnstable.MA$Master` in `r Barnstable.MA$City` which is `r (round(Barnstable.MA$MasterPer,4))*100`% of the population who are 25 years old or older in `r Barnstable.MA$City`.\
+* The number of people, who have professional school degree is `r Barnstable.MA$Prof` in `r Barnstable.MA$City` which is `r (round(Barnstable.MA$ProfPer,4))*100`% of the population who are 25 years old or older in `r Barnstable.MA$City`.\
+* The number of people, who have doctorate degree is `r Barnstable.MA$Doc` in `r Barnstable.MA$City` which is `r (round(Barnstable.MA$DocPer,4))*100`% of the population who are 25 years old or older in `r Barnstable.MA$City`.\
+Followed is the Educational Attainment map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ba.MA.Educ <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B15002_001", # variables for Sex by Edu Attainment for Population 25 yrs or Over
+																					"B15002_003","B15002_004","B15002_005",
+																					"B15002_006","B15002_007","B15002_008","B15002_009","B15002_010",
+																					"B15002_020","B15002_021","B15002_022","B15002_023","B15002_024",
+																					"B15002_025","B15002_026","B15002_027",
+																					"B15002_011","B15002_028",
+																					"B15002_012","B15002_013","B15002_014",
+																					"B15002_029","B15002_030","B15002_031",
+																					"B15002_015","B15002_032",
+																					"B15002_016","B15002_033",
+																					"B15002_017","B15002_034",
+																					"B15002_018","B15002_035"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.Educ.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B15002_001", # variables for Sex by Edu Attainment for Population 25 yrs or Over
+																					"B15002_003","B15002_004","B15002_005",
+																					"B15002_006","B15002_007","B15002_008","B15002_009","B15002_010",
+																					"B15002_020","B15002_021","B15002_022","B15002_023","B15002_024",
+																					"B15002_025","B15002_026","B15002_027",
+																					"B15002_011","B15002_028",
+																					"B15002_012","B15002_013","B15002_014",
+																					"B15002_029","B15002_030","B15002_031",
+																					"B15002_015","B15002_032",
+																					"B15002_016","B15002_033",
+																					"B15002_017","B15002_034",
+																					"B15002_018","B15002_035"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+  mutate(LessThanHS_BG = (B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E),
+				 HSGrad_BG = (B15002_011E + B15002_028E),
+				 SomeColl_BG = (B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E),
+				 Bach_BG = (B15002_015E + B15002_032E),
+				 Master_BG = (B15002_016E + B15002_033E),
+				 Prof_BG = (B15002_017E + B15002_034E),
+				 Doc_BG = (B15002_018E + B15002_035E),
+		    LessThanHSPer_BG = ((B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E)/B15002_001E)*100,
+				 HSGradPer_BG = ((B15002_011E + B15002_028E)/B15002_001E)*100,
+				 SomeCollPer_BG = ((B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E)/B15002_001E)*100,
+				 BachPer_BG = ((B15002_015E + B15002_032E)/B15002_001E)*100,
+				 MasterPer_BG = ((B15002_016E + B15002_033E)/B15002_001E)*100,
+				 ProfPer_BG = ((B15002_017E + B15002_034E)/B15002_001E)*100,
+				 DocPer_BG = ((B15002_018E + B15002_035E)/B15002_001E)*100)
+
+Barnstable.Educ <- merge(ba.Educ.get, ba.MA.Educ, by.x = 'NAME.y', by.y='NAME')
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+tm_shape(Barnstable.Educ) +
+    tm_fill(c('LessThanHSPer_BG', 'HSGradPer_BG', 'SomeCollPer_BG', 'BachPer_BG', 'MasterPer_BG', 'ProfPer_BG', 'DocPer_BG'),
+        style="quantile", 
+        palette=list("Oranges", "Greens", "Blues", "Purples", "Reds","Dark2", "seq"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent), title=c('LessThanHS', 'HSGrad', 'SomeColl', 'Bach', 'Master', 'Prof', 'Doc')) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") + tmap_options(limits = c(facets.view = 7))
+
+```
+
+\
+
+### Single Parent Households
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+##########################################      Single Parent Households     ##################################################################
+MA.Single.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B11001_006", # Female Hoseholder, No Husband Present
+																						"B11001_005", # Male Householder, No Wife Present
+																						"B11001_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(FemHeadPer = B11001_006/B11001_001,
+	       MaleHeadPer = B11001_005/B11001_001) %>%
+	select(City, FemHeadPer, MaleHeadPer) %>%
+  left_join(Barnstable.MA, MA.Single.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Single.ba)
+
+```
+* The percentage of single-female-headed is `r (round(Barnstable.MA$FemHeadPer,4))*100`% of total number of family households in `r Barnstable.MA$City`.\
+* The percentage of single-male-headed is `r (round(Barnstable.MA$MaleHeadPer,4))*100`% of total number of family households in `r Barnstable.MA$City`.\
+Followed is the Single Parent Households map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ba.MA.single <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B11001_006", # Female Hoseholder, No Husband Present
+																						"B11001_005", # Male Householder, No Wife Present
+																						"B11001_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.single.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B11001_006", # Female Hoseholder, No Husband Present
+																						"B11001_005", # Male Householder, No Wife Present
+																						"B11001_001"), 
+													 keep_geo_vars = T, geometry = TRUE)  %>%
+mutate(FemHeadPer = (B11001_006E/B11001_001E)*100,
+	       MaleHeadPer = (B11001_005E/B11001_001E)*100)
+
+Barnstable.single <- merge(ba.single.get, ba.MA.single, by.x = 'NAME.y', by.y='NAME')
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+
+tm_shape(Barnstable.single) + tm_polygons(c("FemHeadPer", "MaleHeadPer"), style="quantile", palette=list("Oranges", "Purples"),popup.format = list(fun = make_percent), legend.format = list(fun = make_percent), border.col = "darkgray", title=c("Female Householder", "Male Householder")) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite") + tmap_options(show.messages = FALSE) 
+
+```
+
+
+\
+
+
+### Population in Poverty
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+###########################################      Population in Poverty    ######################################################################
+
+MA.PopPov.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B17010_002", # Income in the Past 12 Months Below Poverty Level (Family households in poverty)
+																					"B17010_001",  # Total Families Below Poverty Level
+																					"B17001_002", # Persons below poverty
+																					"B17001_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  	mutate(FamPovPer = B17010_002/B17010_001,
+	       PopPovPer = B17001_002/B17001_001,
+	       TotalPopPov = B17001_002) %>%
+	select(City, FamPovPer, PopPovPer, TotalPopPov) %>%
+  left_join(Barnstable.MA,MA.PopPov.ba, by="City")
+
+Barnstable.MA <- cbind(MA.PopPov.ba)
+```
+* The percentage of family, who are in poverty is `r (round(Barnstable.MA$FamPovPer,4))*100` % in `r Barnstable.MA$City`.\
+* The percentage of population, who are in poverty is `r (round(Barnstable.MA$PopPovPer,4))*100` % in `r Barnstable.MA$City`.\
+* The total number of people, who are in poverty is `r Barnstable.MA$TotalPopPov` in `r Barnstable.MA$City`.\
+Followed is the Population in Poverty map of the city.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+
+ba.MA.pov <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B17010_002", # Income in the Past 12 Months Below Poverty Level (Family households in poverty)
+																					"B17010_001",  # Total Families Below Poverty Level
+																					"B17001_002", # Persons below poverty
+																					"B17001_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.pov.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B17010_002", # Income in the Past 12 Months Below Poverty Level (Family households in poverty)
+																					"B17010_001",  # Total Families Below Poverty Level
+																					"B17001_002", # Persons below poverty
+																					"B17001_001"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+	mutate(FamPovPer_BG = (B17010_002E/B17010_001E)*100,
+	       PopPovPer_BG = (B17001_002E/B17001_001E)*100,
+	       TotalPopPov_BG = B17001_002E) 
+
+Barnstable.pov <- merge(ba.pov.get, ba.MA.pov, by.x = 'NAME.y', by.y='NAME')
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+tm_shape(Barnstable.pov) + tm_polygons("FamPovPer_BG", style="jenks", palette="Purples", border.col = "darkgray", title="Family in Poverty",popup.format = list(fun = make_percent), legend.format = list(fun = make_percent)) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+
+```
+
+\
+
+
+### Elderly People Living Alone
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+########################################     Elderly People Living Alone    ##############################################################
+MA.old.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B11010_005", # Male householder, Living alone, 65 years and over
+																					"B11010_012", # Female householder, Living alone, 65 years and over
+																					"B11010_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(OldAlonePer = (B11010_012 + B11010_005)/B11010_001) %>%
+	select(City, OldAlonePer) %>%
+  left_join(Barnstable.MA, MA.old.ba, by="City")
+
+Barnstable.MA <- cbind(MA.old.ba) 
+
+## GIVE US NA
+```
+* The percentage of householders, who are living alone and are older than 65 years old is `r (round(Barnstable.MA$OldAlonePer,4))*100` % in `r Barnstable.MA$City`.\
+
+\
+
+## Educational Institutions
+\
+
+\
+
+### Number/Type of Schools
+\
+
+* `r Barnstable.MA$City` has 1 public schools, which has 258 students. Also, `r Barnstable.MA$City` has 2 private schools with total 172 students. .(https://nces.ed.gov/)
+
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Barnstable.MA$SchoolsDistrict <- 0
+Barnstable.MA$SchoolsDistStudents <- 258
+Barnstable.MA$PubSchools <- 1
+Barnstable.MA$PvSchools <- 2
+```
+
+
+\
+
+
+### Number/Type of Universities
+\
+
+* `r Barnstable.MA$City` has 0 universities in 02630 ZIP Code.(https://nces.ed.gov/)
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Barnstable.MA$NumUni <- 0
+```
+
+
+\
+
+###	Employment Numbers per Institution
+\
+
+* Barnstable School District in `r Barnstable.MA$City` contains 476 teachers and 306 other staffs. The total number of teachers in all private schools in `r Barnstable.MA$City` is 22.(http://www.usa.com/)
+
+
+\
+
+### Number of PK-12 Enrollment in Schools
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+############################################################################################################################
+
+                                             # ----------------------------- #
+                                             #    Educational Institutions   #
+                                             #-------------------------------#
+
+# Number of PK-12 Enrollment at block group level
+MA.Enrol.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B14001_003", # Enrolled in preschool
+																					"B14001_004", # Enrolled in kindergarten
+																					"B14001_005", # Enrolled in grade 1 to 4
+																					"B14001_006", # Enrolled in grade 5 to 8
+																					"B14001_007"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(EnrolPK12 = B14001_003 + B14001_004 + B14001_005 + B14001_006 + B14001_007) %>%
+	select(City, EnrolPK12) %>%
+  left_join(Barnstable.MA, MA.Enrol.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Enrol.ba)
+
+```
+* The total number of students, who enrolled in preschools to 12 grade levels in `r Barnstable.MA$City` schools is `r Barnstable.MA$EnrolPK12`.\
+
+\
+
+
+## Employment
+\
+
+
+### Number of Jobs within Community Boundaries
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+########################################################################################################################################
+
+                                                #----------------------#
+                                                #       EMPLOYMENT     #
+                                                #----------------------#
+
+
+##########################################    Number of Jobs within Community Boundaries   #############################################
+MA.Num.Jobs.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = "B08008_003",
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME,
+         NumJobs = B08008_003) %>% 
+	select(City, NumJobs) %>%
+  left_join(Barnstable.MA, MA.Num.Jobs.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Num.Jobs.ba)
+```
+* The number of jobs within community boundaries in `r Barnstable.MA$City` is `r Barnstable.MA$NumJobs`.\
+
+Followed is the map of Number of Jobs within Community Boundaries of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+
+## MAP
+
+ba.MA.job <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = "B08008_003",
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.job.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = 'B08008_003', 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+	rename(NumJobs = B08008_003E) 
+
+Barnstable.job <- merge(ba.job.get, ba.MA.job, by.x = 'NAME.y', by.y='NAME')
+
+
+tm_shape(Barnstable.job) + tm_polygons("NumJobs", style="jenks", palette="Reds", border.col = "darkgray", title="Number of Jobs") + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+```
+
+\
+
+
+### Labor Force (Total number, participation)
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+############################################# Labor Force (Total number, participation)  ####################################
+
+MA.Labors.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B23025_002", # Number of Labor Force 16 years and over
+														              "B23025_003", # Number of Civilian Labor Force 16 years and over
+														              "B23025_006", # Number of Armed Forces 16 years and over
+														              "B23025_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(LabForce = B23025_002,
+	       LabForcePer = B23025_002/B23025_001,
+	       CivLabForce = B23025_003,
+	       CivLabForcePer = B23025_003/B23025_001,
+	       Military = B23025_006,
+	       MilitaryPer = 	B23025_006/B23025_001,
+	       TotalWorkers = B23025_001) %>%
+	select(City, LabForce, LabForcePer, CivLabForce, CivLabForcePer, Military, MilitaryPer, TotalWorkers)  %>%
+  left_join(Barnstable.MA, MA.Labors.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Labors.ba)
+```
+* The number of labor force, who are 16 years and older in `r Barnstable.MA$City` is 24206 which is `r round(Barnstable.MA$LabForcePer,2)` of total number of labors of which 24206 are civilian labor forces and `r Barnstable.MA$Military` are armed labor forces.\
+
+Followed is the map of Labor Force of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+
+ba.MA.labors <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B23025_002", # Number of Labor Force 16 years and over
+														              "B23025_003", # Number of Civilian Labor Force 16 years and over
+														              "B23025_006", # Number of Armed Forces 16 years and over
+														              "B23025_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.labors.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B23025_002", # Number of Labor Force 16 years and over
+														              "B23025_003", # Number of Civilian Labor Force 16 years and over
+														              "B23025_006", # Number of Armed Forces 16 years and over
+														              "B23025_001"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+	mutate(LabForce = B23025_002E,
+	       LabForcePer = B23025_002E/B23025_001E,
+	       CivLabForce = B23025_003E,
+	       CivLabForcePer = B23025_003E/B23025_001E,
+	       Military = B23025_006E,
+	       MilitaryPer = 	B23025_006E/B23025_001E,
+	       TotalWorkers = B23025_001E) 
+
+Barnstable.labors <- merge(ba.labors.get, ba.MA.labors, by.x = 'NAME.y', by.y='NAME')
+
+
+tm_shape(Barnstable.labors) + tm_polygons("LabForce", style="jenks", palette="seq", border.col = "darkgray", title="Number of Labors") + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+```
+
+\
+
+### Employed and Unemployed
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#####################################################    Employed and Unemployed   ####################################
+
+MA.Emp.Unemp.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B23025_003", # Number of civilian Labor Force 16 years and over
+														              "B23025_004", # Number of Employed individuals 16 years and over
+														              "B23025_005"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(EmpRate = B23025_004/B23025_003,
+	       UnempRate = B23025_005/B23025_003,
+	       EmployedCLF = B23025_004,
+	       UnemployedCLF = B23025_005) %>%
+	select(City ,EmpRate, UnempRate, EmployedCLF, UnemployedCLF) %>%
+  left_join(Barnstable.MA, MA.Emp.Unemp.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Emp.Unemp.ba)
+
+```
+* The rate of employment in `r Barnstable.MA$City` is `r round(Barnstable.MA$EmpRate,2)*100`%.\
+* The rate of unemployment in `r Barnstable.MA$City` is `r round(Barnstable.MA$UnempRate,2)*100`%.\
+
+Followed is Employed and Unemployed map of the city.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ba.MA.emp <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B23025_003", # Number of civilian Labor Force 16 years and over
+														              "B23025_004", # Number of Employed individuals 16 years and over
+														              "B23025_005"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.emp.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B23025_003", # Number of civilian Labor Force 16 years and over
+														              "B23025_004", # Number of Employed individuals 16 years and over
+														              "B23025_005"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+	mutate(EmpRate_BG = B23025_004E/B23025_003E,
+	       UnempRate_BG = B23025_005E/B23025_003E,
+	       EmployedCLF_BG = B23025_004E,
+	       UnemployedCLF_BG = B23025_005E) 
+
+Barnstable.emp <- merge(ba.emp.get, ba.MA.emp, by.x = 'NAME.y', by.y='NAME')
+
+tm_shape(Barnstable.emp) + tm_polygons(c("EmpRate_BG","UnempRate_BG"), style="jenks", palette=list("Greens","seq"), border.col = "darkgray", title=c("Employment rate","Unemployment rate")) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+
+```
+
+\
+
+
+### Major Employers by NCAIS Code
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+################################    Major Employers by NCAIS Code    ##########################################
+MA.Emp.NCAIS.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("C24030_002", # Number of male by industry for the civilian employed, 16 years and over
+														              "C24030_029", # Number of female by industry for the civilian employed, 16 years and over
+														              "C24030_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(MaleNCAIS = C24030_002,
+	       FemaleNCAIS = C24030_029,
+	       MaleNCAISPer = C24030_002/C24030_001,
+	       FemaleNCAISPer = C24030_029/C24030_001) %>%
+	select(City , MaleNCAIS, FemaleNCAIS, MaleNCAISPer, FemaleNCAISPer) %>%
+  left_join(Barnstable.MA, MA.Emp.NCAIS.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Emp.NCAIS.ba)
+
+```
+* Number of male by industry for the civilian employed in `r Barnstable.MA$City` is `r Barnstable.MA$MaleNCAIS` which is `r round(Barnstable.MA$MaleNCAISPer,2)` of population, who are 16 years and over.\
+* Number of female by industry for the civilian employed in `r Barnstable.MA$City` is `r Barnstable.MA$FemaleNCAIS` which is `r round(Barnstable.MA$FemaleNCAISPer,2)` of population, who are 16 years and over.\
+
+Followed is the map of the Major Employers by NCAIS Code of the city.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ba.MA.majorEmp <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("C24030_002", # Number of male by industry for the civilian employed, 16 years and over
+														              "C24030_029", # Number of female by industry for the civilian employed, 16 years and over
+														              "C24030_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.majorEmp.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("C24030_002", # Number of male by industry for the civilian employed, 16 years and over
+														              "C24030_029", # Number of female by industry for the civilian employed, 16 years and over
+														              "C24030_001"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+  mutate(MaleNCAIS_BG = C24030_002E,
+	       FemaleNCAIS_BG = C24030_029E,
+	       MaleNCAISPer_BG = C24030_002E/C24030_001E,
+	       FemaleNCAISPer_BG = C24030_029E/C24030_001E) 
+
+Barnstable.majorEmp <- merge(ba.majorEmp.get, ba.MA.majorEmp, by.x = 'NAME.y', by.y='NAME')
+
+
+tm_shape(Barnstable.majorEmp) + tm_polygons(c("MaleNCAISPer_BG","FemaleNCAISPer_BG"), style="jenks", palette=list("Greens","seq"), border.col = "darkgray", title=c("MaleNCAIS Proportion","FemaleNCAIS Proportion")) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+
+
+
+```
+
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+tm_shape(Barnstable.majorEmp) + tm_polygons(c("MaleNCAIS_BG","FemaleNCAIS_BG"), style="jenks", palette=list("Greens","seq"), border.col = "darkgray", title=c("MaleNCAIS","FemaleNCAIS")) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+```
+
+
+\
+
+
+### Top Industries by NCAIS Code
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+######################################    Top Industries by NCAIS Code   ##################################################
+
+MA.Industries.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("C24030_003", # Agriculture, forestry, fishing and hunting, and mining (Male)
+														              "C24030_030", # Agriculture, forestry, fishing and hunting, and mining (Female)
+														              "C24030_006", # Construction (Male)
+														              "C24030_033", # Construction (Female)
+														              "C24030_007", # Manufacturing (Male)
+														              "C24030_034", # Manufacturing (Female)
+														              "C24030_008", # Wholesale trade (Male)
+														              "C24030_035", # Wholesale trade (Female)
+														              "C24030_009", # Retail trade (Male)
+														              "C24030_036", # Retail trade (Female)
+														              "C24030_010", # Transportation and warehousing, and utilities (Male)
+														              "C24030_037", # Transportation and warehousing, and utilities (Female)
+														              "C24030_013", # Information (Male)
+														              "C24030_040", # Information (Female)
+														              "C24030_014", # Finance and insurance, and real estate, and rental and leasing (Male)
+														              "C24030_041", # Finance and insurance, and real estate, and rental and leasing (Female)
+														              "C24030_017", # Professional, scientific, and management, and administrative, and waste management services (Male)
+														              "C24030_044", # Professional, scientific, and management, and administrative, and waste management services (Female)
+														              "C24030_021", # Educational services, and health care and social assistance (Male)
+														              "C24030_048", # Educational services, and health care and social assistance (Female)
+														              "C24030_024", # Arts, entertainment, and recreation, and accommodation and food services (Male)
+														              "C24030_051", # Arts, entertainment, and recreation, and accommodation and food services (Female)
+														              "C24030_027", # Other services, except public administration (Male)
+														              "C24030_054", # Other services, except public administration (Female)
+														              "C24030_028", # Public administration (Male)
+														              "C24030_055", # Public administration (Female)
+														              "C24030_001"), # Total,
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(Agriculture = (C24030_003 + C24030_030)/C24030_001,
+	       Construction = (C24030_006 + C24030_033)/C24030_001,
+	       Manufacturing = (C24030_007 + C24030_034)/C24030_001,
+	       WholesaleTrade = (C24030_008 + C24030_035)/C24030_001,
+	       RetailTrade = (C24030_009 + C24030_036)/C24030_001,
+	       Transportation = (C24030_010 + C24030_037)/C24030_001,
+	       Information = (C24030_013 + C24030_040)/C24030_001,
+	       Finance_Ins = (C24030_014 + C24030_041)/C24030_001,
+	       Professional = (C24030_017 + C24030_044)/C24030_001,
+	       Educ_Health_SocSvcs = (C24030_021 + C24030_048)/C24030_001,
+	       RecreationEtc = (C24030_024 + C24030_051)/C24030_001,
+	       OtherIndustries = (C24030_027 + C24030_054)/C24030_001,
+	       PublicAdmin = (C24030_028 + C24030_055)/C24030_001) %>%
+	select(City,Agriculture,Construction,Manufacturing,WholesaleTrade,RetailTrade,Transportation,Information,
+	       Finance_Ins,Professional,Educ_Health_SocSvcs,RecreationEtc,OtherIndustries,PublicAdmin) %>%
+  left_join(Barnstable.MA, MA.Industries.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Industries.ba)
+
+```
+* The percentage of people, who are in agriculture, forestry, fishing, hunting, and mining in `r Barnstable.MA$City` is `r (round(Barnstable.MA$Agriculture,4))*100`%.\
+
+* The percentage of people, who are in construction in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$Construction,4))*100`%".\
+
+* The percentage of people, who are in manufacturing in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$Manufacturing,4))*100`%.\
+
+* The percentage of people, who are in wholesale trade in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$WholesaleTrade,4))*100`%.\
+
+* The percentage of people, who are in retail trade in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$RetailTrade,4))*100`%.\
+
+* The percentage of people, who are in transportation and warehousing, and utilities in`r Barnstable.MA$City`state is`r (round(Barnstable.MA$Transportation,4))*100`%.\
+
+* The percentage of people, who are in information in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$Information,4))*100`%.\
+
+* The percentage of people, who are in finance and insurance, and real estate, and rental and leasing in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$Finance_Ins,4))*100`%.\
+
+* The percentage of people, who are in professional, scientific, and management, and administrative, and waste management services in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$Professional,4))*100`%.\
+
+* The percentage of people, who are in educational services, and health care and social assistance in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$Educ_Health_SocSvcs,4))*100`%.\
+
+* The percentage of people, who are in arts, entertainment, and recreation, and accommodation and food services in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$RecreationEtc,4))*100`%.\
+
+* The percentage of people, who are in other services, except public administration in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$OtherIndustries,4))*100`%.\
+
+* The percentage of people, who are in Public administration in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$PublicAdmin,4))*100`%.\
+\
+
+### Earning Breakdown 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+###########################    Earning Breakdown   ####################################
+MA.Earning.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = "B20017_001",
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(MedEarning = B20017_001) %>%
+	select(City,MedEarning) %>%
+  left_join(Barnstable.MA, MA.Earning.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Earning.ba)
+```
+* The median earning in `r Barnstable.MA$City` is 36049 Dollar`.\
+Followed is the Median Earning map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ba.MA.earning <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = "B20017_001",
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.earning.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = 'B20017_001', 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+  mutate(MedEarning = B20017_001E)
+
+Barnstable.earning <- merge(ba.earning.get, ba.MA.earning, by.x = 'NAME.y', by.y='NAME')
+
+make_dollar <- function(x, digits = 0) {
+  paste0("$", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+
+tm_shape(Barnstable.earning) + tm_polygons("MedEarning" , palette="seq", style = "jenks", title = "Median Earning", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") 
+
+
+```
+
+\
+
+
+### Employee Age
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################    Employee Age   #############################################################
+
+MA.Emp.Age.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B23001_005","B23001_007","B23001_012","B23001_014","B23001_019","B23001_021","B23001_026","B23001_028", # Age 29 or younger male
+								"B23001_033","B23001_035","B23001_040","B23001_042","B23001_047","B23001_049", # Age 30 to 54 male
+								"B23001_054","B23001_056","B23001_061","B23001_063","B23001_068","B23001_070","B23001_075","B23001_080","B23001_085", # Age 55 or older male
+								"B23001_091","B23001_093","B23001_098","B23001_100","B23001_105","B23001_107","B23001_112","B23001_114", # Age 29 or younger female
+								"B23001_119","B23001_121","B23001_126","B23001_128","B23001_133","B23001_135", # Age 30 to 54 female
+								"B23001_140","B23001_142","B23001_147","B23001_149","B23001_154","B23001_156","B23001_161","B23001_166","B23001_171", # Age 55 or older female
+														              "B23001_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(AgeEmpU29 = B23001_005+B23001_007+B23001_012+B23001_014+B23001_019+B23001_021+B23001_026+B23001_028+
+	         B23001_091+B23001_093+B23001_098+B23001_100+B23001_105+B23001_107+B23001_112+B23001_114,
+	       AgeEmp3054 = B23001_033+B23001_035+B23001_040+B23001_042+B23001_047+B23001_049+
+	         B23001_119+B23001_121+B23001_126+B23001_128+B23001_133+B23001_135,
+	       AgeEmpO55 = B23001_054+B23001_056+B23001_061+B23001_063+B23001_068+B23001_070+B23001_075+B23001_080+B23001_085+
+	        B23001_140+B23001_142+B23001_147+B23001_149+B23001_154+B23001_156+B23001_161+B23001_166+B23001_171,
+         
+         AgeEmpU29Per_BG = (B23001_005+B23001_007+B23001_012+B23001_014+B23001_019+B23001_021+B23001_026+B23001_028+
+	         B23001_091+B23001_093+B23001_098+B23001_100+B23001_105+B23001_107+B23001_112+B23001_114)/B23001_001,
+	        AgeEmp3054Per_BG = (B23001_033+B23001_035+B23001_040+B23001_042+B23001_047+B23001_049+
+	         B23001_119+B23001_121+B23001_126+B23001_128+B23001_133+B23001_135)/B23001_001,
+	       AgeEmpO55Per_BG = (B23001_054+B23001_056+B23001_061+B23001_063+B23001_068+B23001_070+B23001_075+B23001_080+B23001_085+
+	        B23001_140+B23001_142+B23001_147+B23001_149+B23001_154+B23001_156+B23001_161+B23001_166+B23001_171)/B23001_001) %>%
+
+	select(City ,AgeEmpU29, AgeEmp3054, AgeEmpO55, AgeEmpU29Per_BG,AgeEmp3054Per_BG,AgeEmpO55Per_BG) %>%
+  left_join(Barnstable.MA, MA.Emp.Age.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Emp.Age.ba)
+
+```
+* The number of workers, who are younger than 29 years old in `r Barnstable.MA$City` is `r Barnstable.MA$AgeEmpU29` which is `r (round(Barnstable.MA$AgeEmpU29Per,4))*100`% of total number of workers.\
+
+* The number of workers, who are between 30 and 54 years old in `r Barnstable.MA$City` is `r Barnstable.MA$AgeEmp3054` which is `r (round(Barnstable.MA$AgeEmp3054Per,4))*100`% of total number of workers.\
+
+* The number of workers, who are older than 55 years old in `r Barnstable.MA$City` is `r Barnstable.MA$AgeEmpO55` which is `r (round(Barnstable.MA$AgeEmpO55Per,4))*100`% of total number of workers.\
+
+\
+
+
+### Employee Race
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################      Employee Race    ############################################################
+MA.Emp.Race.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("C23002A_007","C23002A_012","C23002A_020","C23002A_025","C23002A_005","C23002A_018", # White alone
+														              "C23002B_007","C23002B_012","C23002B_020","C23002B_025","C23002B_005","C23002B_018", # Black or African American alone
+														              "C23002D_007","C23002D_012","C23002D_020","C23002D_025","C23002D_005","C23002D_018", # Asian alone
+														              "C23002I_007","C23002I_012","C23002I_020","C23002I_025","C23002I_005","C23002I_018", # Hispanic or Latino alone
+														              "C23002G_007","C23002G_012","C23002G_020","C23002G_025","C23002G_005","C23002G_018",# Two or more races
+														              "B23001_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(WhiteEmp = C23002A_007+C23002A_012+C23002A_020+C23002A_025+C23002A_005+C23002A_018,
+	       BlackEmp = C23002B_007+C23002B_012+C23002B_020+C23002B_025+C23002B_005+C23002B_018,
+	       AsianEmp = C23002D_007+C23002D_012+C23002D_020+C23002D_025+C23002D_005+C23002D_018,
+	       HispanicEmp = C23002I_007+C23002I_012+C23002I_020+C23002I_025+C23002I_005+C23002I_018,
+	       TwoOrMoreEmp = C23002G_007+C23002G_012+C23002G_020+C23002G_025+C23002G_005+C23002G_018,
+         WhiteEmpPer = (C23002A_007+C23002A_012+C23002A_020+C23002A_025+C23002A_005+C23002A_018)/B23001_001,
+	       BlackEmpPer = (C23002B_007+C23002B_012+C23002B_020+C23002B_025+C23002B_005+C23002B_018)/B23001_001,
+	       AsianEmpPer = (C23002D_007+C23002D_012+C23002D_020+C23002D_025+C23002D_005+C23002D_018)/B23001_001,
+	       HispanicEmpPer = (C23002I_007+C23002I_012+C23002I_020+C23002I_025+C23002I_005+C23002I_018)/B23001_001,
+	       TwoOrMoreEmpPer = (C23002G_007+C23002G_012+C23002G_020+C23002G_025+C23002G_005+C23002G_018)/B23001_001) %>%
+	select(City ,WhiteEmp, BlackEmp, AsianEmp, HispanicEmp, TwoOrMoreEmp,
+	       WhiteEmpPer, BlackEmpPer, AsianEmpPer, HispanicEmpPer, TwoOrMoreEmpPer) %>%
+  left_join(Barnstable.MA, MA.Emp.Race.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Emp.Race.ba)
+
+```
+
+* The number of white workers in `r Barnstable.MA$City` is `r Barnstable.MA$WhiteEmp` which is `r (round(Barnstable.MA$WhiteEmpPer,4))*100`% of total number of workers.\
+* The number of black workers in `r Barnstable.MA$City` is `r Barnstable.MA$BlackEmp` which is `r (round(Barnstable.MA$BlackEmpPer,4))*100`% of total number of workers.\
+* The number of asian workers in `r Barnstable.MA$City` is `r Barnstable.MA$AsianEmp` which is `r (round(Barnstable.MA$AsianEmpPer,4))*100`% of total number of workers.\
+* The number of hispanic or latino workers in `r Barnstable.MA$City` is `r Barnstable.MA$HispanicEmp` which is `r (round(Barnstable.MA$HispanicEmpPer,4))*100`% of total number of workers.\
+* The number of workers, who have two or more races in `r Barnstable.MA$City` is `r Barnstable.MA$TwoOrMoreEmp` which is `r (round(Barnstable.MA$TwoOrMoreEmpPer,4))*100`% of total number of workers.\
+\
+
+
+### Employee Education
+\
+```{r message=FALSE, warning=FALSE, ,echo=FALSE, results='hide', comment=""}
+#############################################   Employee Education    ########################################################
+
+MA.Educ.Emp.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B16010_003", # Less than high school graduate in labor force
+														              "B16010_016", # High school graduate in labor force 
+														              "B16010_029", # Some college or associate's degree in labor force
+														              "B16010_042",
+														              "B16010_001"), # Total
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  	mutate(LessThanHSLabor = B16010_003,
+	       HSGradLabor = B16010_016,
+	       SomeCollLabor = B16010_029,
+	       BachOrHigherLabor = B16010_042,
+	       LessThanHSLaborPer = LessThanHSLabor/B16010_001,
+	       HSGradLaborPer = HSGradLabor/B16010_001,
+	       SomeCollLaborPer = SomeCollLabor/B16010_001,
+	       BachOrHigherLaborPer = BachOrHigherLabor/B16010_001) %>%
+	select(City ,LessThanHSLabor, HSGradLabor, SomeCollLabor, BachOrHigherLabor,
+	       LessThanHSLaborPer, HSGradLaborPer, SomeCollLaborPer, BachOrHigherLaborPer) %>%
+  left_join(Barnstable.MA, MA.Educ.Emp.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Educ.Emp.ba)
+```
+* The number of workers, who have less than high school degree in `r Barnstable.MA$City` is `r Barnstable.MA$LessThanHSLabor` which is `r (round(Barnstable.MA$LessThanHSLaborPer,4))*100`% of total number of workers.\
+* The number of workers, who have high school degree in `r Barnstable.MA$City` is `r Barnstable.MA$HSGradLabor` which is `r (round(Barnstable.MA$HSGradLaborPer,4))*100`% of total number of workers.\
+* The number of workers, who have some college or associates degree in `r Barnstable.MA$City` is `r Barnstable.MA$SomeCollLabor` which is `r (round(Barnstable.MA$SomeCollLaborPer,4))*100`% of total number of workers.\
+* The number of workers, who have bachelors degree or higher in `r Barnstable.MA$City` is `r Barnstable.MA$BachOrHigherLabor` which is `r (round(Barnstable.MA$BachOrHigherLaborPer,4))*100`% of total number of workers.\
+
+\
+
+### Employee Sex
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################    Employee Sex   #############################################################
+
+MA.Emp.Sex.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B23001_005", # Employed males
+														              "B23001_007", 
+														              "B23001_012",
+														              "B23001_014",
+														              "B23001_019",
+														              "B23001_021",
+														              "B23001_026",
+														              "B23001_028",
+														              "B23001_033",
+														              "B23001_035",
+														              "B23001_040",
+														              "B23001_042",
+														              "B23001_047",
+														              "B23001_049",
+														              "B23001_054",
+														              "B23001_056",
+														              "B23001_061",
+														              "B23001_063",
+														              "B23001_068",
+														              "B23001_070",
+														              "B23001_075",
+														              "B23001_080",
+														              "B23001_085",
+														              "B23001_091", # Employed females
+														              "B23001_093",
+														              "B23001_098",
+														              "B23001_100",
+														              "B23001_105",
+														              "B23001_107",
+														              "B23001_112",
+														              "B23001_114",
+														              "B23001_119",
+														              "B23001_121",
+														              "B23001_126",
+														              "B23001_128",
+														              "B23001_133",
+														              "B23001_135",
+														              "B23001_140",
+														              "B23001_142",
+														              "B23001_147",
+														              "B23001_149",
+														              "B23001_154",
+														              "B23001_156",
+														              "B23001_161",
+														              "B23001_166",
+														              "B23001_171",
+														              "B23001_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  	mutate(EmpMale = B23001_005 + B23001_007 + B23001_012 + B23001_014 + B23001_019 + B23001_021 + B23001_026 + B23001_028 + B23001_033 + B23001_035 + B23001_040 + B23001_042 + B23001_047 + B23001_049 + B23001_054 + B23001_056 + B23001_061 + B23001_063 + B23001_068+ B23001_070 + B23001_075 + B23001_080 + B23001_085,
+	  EmpFemale = B23001_091 + B23001_093 + B23001_098 + B23001_100 + B23001_105 + B23001_107 + B23001_112 + B23001_114 + B23001_119 + B23001_121 + B23001_126+ B23001_128 + B23001_133 + B23001_135 + B23001_140 + B23001_142 + B23001_147 + B23001_149 + B23001_154 + B23001_156 + B23001_161 + B23001_166 + B23001_171,
+	  TotalEmp = EmpMale + EmpFemale,
+	  EmpMalePer = EmpMale/	B23001_001,
+	  EmpFemalePer = EmpFemale/B23001_001) %>%
+	select(City, EmpMale, EmpFemale, TotalEmp, EmpMalePer, EmpFemalePer) %>%
+  left_join(Barnstable.MA, MA.Emp.Sex.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Emp.Sex.ba)
+
+
+```
+* The number of male workers in `r Barnstable.MA$City` is `r Barnstable.MA$EmpMale` which is `r (round(Barnstable.MA$EmpMalePer,4))*100`% of total number of workers.\
+* The number of female workers in `r Barnstable.MA$City` is `r Barnstable.MA$EmpFemale` which is `r (round(Barnstable.MA$EmpFemalePer,4))*100`% of total number of workers.\
+
+
+\
+
+## Healthcare
+\
+
+### Number of Hospitals
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+Barnstable.MA$Hospitals <- 0
+```
+
+
+* `r Barnstable.MA$City` has no hospital.(https://www.ahd.com/)
+
+\
+
+
+###	Number of Nursing Homes 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Barnstable.MA$NursingHomes <- 0
+```
+
+
+* `r Barnstable.MA$City` has no nursing homes.(https://nursinghomedirectory.com/)
+
+
+## Municipal Finances
+\
+
+###	Revenue Streams
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+Barnstable.MA$TotalRevenueFY19 <- 168948638
+Barnstable.MA$RevenueTaxesFY19 <- 132879229
+Barnstable.MA$StateRevenueFY19 <- 17093049 
+Barnstable.MA$RevenueMiscellaneousFY19 <- 816010
+Barnstable.MA$RevenueServiceChargesFY19 <- 5055505
+Barnstable.MA$RevenuePermitsFY19 <- 2405105
+Barnstable.MA$RevenueFineForfeituresFY19 <- 330029
+Barnstable.MA$RevenueGovernmentsFY19 <- 0
+Barnstable.MA$RevenueTransferFY19 <- 9500361
+```
+* The total revenues for `r Barnstable.MA$City` is $168,948,638 in Fiscal Year 2019, which includes taxes with 132,879,229 Dollar, state revenue with 17,093,049 Dollar, miscellaneous with 816,010 Dollar, service charges with 5,055,505 Dollar, licenses and permits with 2,405,105 Dollar, fines and forfeitures with 330,029 Dollar, revenue from other governments with 0 Dollar, transfers with 9,500,361 Dollar, and special assessments with 234,641 Dollar.(https://dlsgateway.dor.state.ma.us/)
+
+\
+
+###	Major Expense Drivers
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Barnstable.MA$ExpendituresFY19 <- 153302765
+Barnstable.MA$EXEducationFY19 <- 75815213
+Barnstable.MA$EXFixedCostsFY19 <- 21596909
+Barnstable.MA$EXDebtServiceFY19 <- 9970663
+Barnstable.MA$EXPoliceFY19 <- 14435712
+Barnstable.MA$EXPublicWorksFY19 <- 6321282
+Barnstable.MA$EXFireFY19 <- 0
+Barnstable.MA$EXIntergovernmentalFY19 <- 4738750
+Barnstable.MA$EXGeneralGovernmentFY19 <- 12229545
+Barnstable.MA$EXHumanServicesFY19 <- 1942548
+Barnstable.MA$EXCultureRecreationFY19 <- 4077854
+Barnstable.MA$EXOtherExpendituresFY19 <- 0
+Barnstable.MA$EXPublicSafetyFY19 <- 2174289
+```
+
+* The total amount of expenditures for `r Barnstable.MA$City` is $153,302,765 in Fiscal Year 2019 and the major expense driver is related to education, which is 75,815,213 Dollar. After that fixed costs with 21,596,909 Dollar, police with 14,435,712 Dollar, general government with 12,229,545 Dollar, debt service with 9,970,663 Dollar, public works with 6,321,282 Dollar, intergovernmental assessments with 4,738,750 Dollar, culture and recreation with 4,077,854 Dollar, other public safety with 2,174,289 Dollar, human services with 1,942,548 Dollar, fire with 0 Dollar, and other expenditures with 0 Dollar, and . (https://dlsgateway.dor.state.ma.us/)\
+
+
+\
+
+### FY20 Budget – Projected Deficits 
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Barnstable.MA$ExpendituresFY20 <- 177662155
+Barnstable.MA$EXEducationFY20 <- 83860143
+Barnstable.MA$EXGeneralGovernmentFY20 <- 41206034
+
+Barnstable.MA$TotalRevenueFY20 <- 177662355
+Barnstable.MA$RevenuePopertyTaxFY20 <- 127255506
+
+```
+
+
+* Expenditures: The proposed FY20 municipal operating budget in `r Barnstable.MA$City` is 177,662,155 Dollar reflecting increase over FY19. 
+Revenue: The proposed FY20 municipal operating budget in `r Barnstable.MA$City` is 177,662,355 Dollar. Amounts to be raised from the property tax equals 127,255,506 Dollar. The remaining revenue will come from other sources.(https://town.barnstable.ma.us/Departments/Finance/Budget_Information/-FY21-Operating-Budget-Summary.pdf)
+
+
+\
+
+
+## Infrastructure
+\
+
+### Presence of Nearby Ports, Airports, Major Rail Facilities, or Intermodal Freight Facilities
+\
+
+* "Barnstable Municipal Airport, located in Hyannis, Massachusetts on Cape Cod, provides commercial and general aviation services to Boston, New York and the islands of Martha’s Vineyard and Nantucket. It is owned by the Town of Barnstable and managed by the Barnstable Municipal Airport Commission and its staff". (https://www.town.barnstable.ma.us/airport/pilots/airportdata.aspx). Hyannis Port (or Hyannisport) is a small residential village located in Barnstable, Massachusetts, United States. It is an affluent summer community on Hyannis Harbor, 1.4 miles to the south-southwest of Hyannis.
+
+\
+
+### Public Transport Reliability and Scope 
+\
+
+* Cape Cod Regional Transit Authority providing public transportation services for all 15 Cape Cod communities including Barnstable. The CCRTA owns and operates the Hyannis Transportation Center in downtown Hyannis and the new state of the art CCRTA Operations and Maintenance Facility in South Dennis.\
+
+
+\
+
+### Internet Access
+\
+
+* Barnstable currently has two widely available Internet providers: Viasat Internet (formerly Exede) and HughesNet. "Viasat mostly offers Satellite service, with speeds as high as 35 Mbps and coverage in practically one hundred percent of the population. HughesNet sells Satellite, with coverage for virtually one hundred percent of the area. The average Barnstable home has 2 providers available. Averaged out across all blocks in the city, the density of competition is precisely 2.97 options for each location. XFINITY from Comcast is another common Internet option for Barnstable. They offer primarily Cable connections in near one hundred percent of the area".(https://broadbandnow.com/Massachusetts/Barnstable)
+
+
+
+
+\
+
+## Food Insecurity
+\
+
+### Number of Grocery Stores
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Barnstable.MA$NumGrocery <- 68
+```
+* `r Barnstable.MA$City` has 68 Grocery Stores.\
+
+\
+
+### SNAP Recipients 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##########################################################################################################################
+
+                                                #----------------------#
+                                                #    FOOD INSECURITY   #
+                                                #----------------------#
+
+####################################################  SNAP Recipients  ###################################################         
+
+MA.Snap.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B22001_002", # Household received Food Stamps/SNAP in the past 12 months
+														"B22001_001"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  	mutate(SnapRec = B22001_002/B22001_001) %>%
+	select(City ,SnapRec) %>%
+  left_join(Barnstable.MA, MA.Snap.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Snap.ba)
+
+#######################################################################################################################################
+
+```
+* The percent of households, who received Food Stamps/SNAP in the past 12 months in `r Barnstable.MA$City` state is `r (round(Barnstable.MA$SnapRec,4))*100`%.\
+
+\
+
+## Housing
+\
+
+### Proportion of Renters to Owners
+\
+
+### Home Values
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+                                                #----------------------#
+                                                #       HOUSING        #
+                                                #----------------------#
+
+######################   Proportion of Renters to Owners, Home Values   ########################################
+
+MA.Housing.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B25009_001", # Total Occupied Housing Units
+															 	"B25009_002", # Total Owner Occupied Housing Units
+															 	"B25009_010", # Total Renter Occupied Housing Units
+															 	"B25077_001", # Median Home Value
+															 	"B25082_001", # Aggregate value
+															 	"B25003_002"), # Owner occupied
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME,
+         MedianHValue = B25077_001,
+	       AvgHValue = B25082_001/B25003_002) %>%
+	mutate(RentersPer = B25009_010/B25009_001,
+				 HomeOwnPer = B25009_002/B25009_001,
+				 RentersToOwners = B25009_010/B25009_002) %>%
+	select(City,RentersPer, HomeOwnPer, RentersToOwners, MedianHValue, AvgHValue) %>%
+  left_join(Barnstable.MA, MA.Housing.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Housing.ba)
+```
+* The median house value in `r Barnstable.MA$City` is 368300 Dollar.\
+
+* The average house value in `r Barnstable.MA$City` is 6800079800 Dollar.\
+
+* The proportion of renters to owners in `r Barnstable.MA$City` is `r round(Barnstable.MA$RentersToOwners,3)`.\
+
+* The percentage of renters in `r Barnstable.MA$City` is `r (round(Barnstable.MA$RentersPer,2))*100`%.\
+
+* The percentage of owners in `r Barnstable.MA$City` is `r (round(Barnstable.MA$HomeOwnPer,2))*100`%.\
+
+Followed is the map of Proportion of Renters to Owners, Median Home Values, and Average Home Values of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## MAP
+ba.MA.housing <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B25009_001", # Total Occupied Housing Units
+															 	"B25009_002", # Total Owner Occupied Housing Units
+															 	"B25009_010", # Total Renter Occupied Housing Units
+															 	"B25077_001", # Median Home Value
+															 	"B25082_001", # Aggregate value
+															 	"B25003_002"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.housing.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B25009_001", # Total Occupied Housing Units
+															 	"B25009_002", # Total Owner Occupied Housing Units
+															 	"B25009_010", # Total Renter Occupied Housing Units
+															 	"B25077_001", # Median Home Value
+															 	"B25082_001", # Aggregate value
+															 	"B25003_002"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+rename(MedianHValue_BG = B25077_001E,
+	       AvgHValue_BG = B25082_001E / B25003_002E) %>%
+	mutate(RentersPer_BG = B25009_010E/B25009_001E,
+				 HomeOwnPer_BG = B25009_002E/B25009_001E,
+				 RentersToOwners_BG = B25009_010E/B25009_002E)
+
+Barnstable.housing <- merge(ba.housing.get, ba.MA.housing, by.x = 'NAME.y', by.y='NAME')
+
+
+tm_shape(Barnstable.housing) + tm_polygons("MedianHValue_BG" , palette="Blues", style = "quantile", title = "Median Home Value", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") 
+
+```
+
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+tm_shape(Barnstable.housing) + tm_polygons("AvgHValue_BG" , palette="Greens", style = "quantile", title = "Average Home Value", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray")
+```
+\
+
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+tm_shape(Barnstable.housing) + tm_polygons("RentersToOwners_BG" , palette="Reds", style = "quantile", title = "RentersToOwners") + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") 
+```
+
+\
+
+### Property Tax Rates
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Barnstable.MA$PropertyTaxRate.RES <- 12.54
+Barnstable.MA$PropertyTaxRate.Com <- 11.66
+```
+* The amount of tax rate in `r Barnstable.MA$City` is $12.54 per thousand Dollar for residential properties and is 11.66 Dollar for per 1,000 Dollar for commercial properties in fiscal year 2020.(https://www.townofbarnstable.us/Departments/Assessing/Property_Values/FY20-Tax-Rates)
+
+\
+
+
+### Duration of Occupancy
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#########################################      Duration of Occupancy    ####################################################
+MA.Dur.Occ.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B25039_001", # Median Year Householder Moved Into Unit by Tenure
+															 	"B25039_002", # Median Year Householder Moved Into Unit by Tenure (Owner)
+															 	"B25039_003"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME,
+         MedYrMovedIn = B25039_001, 
+				 MedYrRentMovedIn = B25039_003,
+				 MedYrOwnMovedIn = B25039_002) %>%
+	select(City, MedYrMovedIn, MedYrRentMovedIn, MedYrOwnMovedIn) %>%
+  left_join(Barnstable.MA, MA.Dur.Occ.ba, by="City")
+
+Barnstable.MA <- cbind(MA.Dur.Occ.ba)
+```
+* The median year that a homeowner moved into their current domicile in `r Barnstable.MA$City` is `r Barnstable.MA$MedYrOwnMovedIn`.\
+* The median year that a renter moved into their current domicile in `r Barnstable.MA$City` is `r Barnstable.MA$MedYrRentMovedIn`.\
+Followed is the map of Duration of Occupancy of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+## MAP
+ba.MA.dur <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B25039_001", # Median Year Householder Moved Into Unit by Tenure
+															 	"B25039_002", # Median Year Householder Moved Into Unit by Tenure (Owner)
+															 	"B25039_003"),
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "block group")
+
+ba.dur.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="MA",
+													 county = "Barnstable",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B25039_001", # Median Year Householder Moved Into Unit by Tenure
+															 	"B25039_002", # Median Year Householder Moved Into Unit by Tenure (Owner)
+															 	"B25039_003"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+rename(MedYrMovedIn_BG = B25039_001E, # I'm not sure if I should substract this value from 2018
+				 MedYrRentMovedIn_BG = B25039_003E,
+				 MedYrOwnMovedIn_BG = B25039_002E)
+
+Barnstable.dur <- merge(ba.dur.get, ba.MA.dur, by.x = 'NAME.y', by.y='NAME')
+
+
+
+tm_shape(Barnstable.dur) + tm_polygons(c("MedYrMovedIn_BG","MedYrRentMovedIn_BG","MedYrOwnMovedIn_BG"), style="jenks", palette=list("Greens","seq","Blues"), border.col = "darkgray", title=c("MedYrMovedIn","MedYrRentMovedIn","MedYrOwnMovedIn")) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+```
+
+
+\
+
+### Cost Burdened Occupants
+
+
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+##############################################   Cost Burdened Occupants   ##################################
+MA.CostBurdened.ba <- read_acs5year(year = endyr,
+                     states = "MA",
+                     table_contents = c("B25095_006", # Household income by selected monthly owner Costs as a percentage of household income
+														              # Less than $10,000 (30 to 34.9 percent)
+														              "B25095_007", # Less than $10,000 (35 to 39.9 percent)
+														              "B25095_008", # Less than $10,000 (40 to 49.9 percent)
+														              "B25095_009", # Less than $10,000 (50 percent or more)
+														              "B25095_015", # $10,000 to $19,999 (30 to 34.9 percent)
+														              "B25095_016", # $10,000 to $19,999 (35 to 39.9 percent)
+														              "B25095_017", # $10,000 to $19,999 (40 to 49.9 percent)
+														              "B25095_018", # $10,000 to $19,999 (50 percent or more)
+														              "B25095_024", # $20,000 to $34,999 (30 to 34.9 percent)
+														              "B25095_025", # $20,000 to $34,999 (35 to 39.9 percent)
+														              "B25095_026", # $20,000 to $34,999 (40 to 49.9 percent)
+														              "B25095_027", # $20,000 to $34,999 (50 percent or more)
+														              "B25095_033", # $35,000 to $49,999 (30 to 34.9 percent)
+														              "B25095_034", # $35,000 to $49,999 (35 to 39.9 percent)
+														              "B25095_035", # $35,000 to $49,999 (40 to 49.9 percent)
+														              "B25095_036", # $35,000 to $49,999 (50 percent or more)
+														              "B25095_042", # $50,000 to $74,999 (30 to 34.9 percent)
+														              "B25095_043", # $50,000 to $74,999 (35 to 39.9 percent)
+														              "B25095_044", # $50,000 to $74,999 (40 to 49.9 percent)
+														              "B25095_045", # $50,000 to $74,999 (50 percent or more)
+														              "B25095_051", # $75,000 to $99,999 (30 to 34.9 percent)
+														              "B25095_052", # $75,000 to $99,999 (35 to 39.9 percent)
+														              "B25095_053", # $75,000 to $99,999 (40 to 49.9 percent)
+														              "B25095_054", # $75,000 to $99,999 (50 percent or more)
+														              "B25095_060", # $100,000 to $149,999 (30 to 34.9 percent)
+														              "B25095_061", # $100,000 to $149,999 (35 to 39.9 percent)
+														              "B25095_062", # $100,000 to $149,999 (40 to 49.9 percent)
+														              "B25095_063", # $100,000 to $149,999 (50 percent or more)
+														              "B25095_069", # $150,000 or more (30 to 34.9 percent)
+														              "B25095_070", # $150,000 or more (35 to 39.9 percent)
+														              "B25095_071", # $150,000 or more (40 to 49.9 percent)
+														              "B25095_072", # $150,000 or more (50 percent or more)
+														              "B25095_001",
+														              "B25095_001"), # Total
+                     areas = "Barnstable Town city, MA",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(CostBurdened = B25095_006+B25095_007+B25095_008+B25095_009+B25095_015+B25095_016+B25095_017+B25095_018+
+	       B25095_024+B25095_025+B25095_026+B25095_027+B25095_033+B25095_034+B25095_035+B25095_036+B25095_042+B25095_043+B25095_044+B25095_045+B25095_051+B25095_052+B25095_053+B25095_054+B25095_060+B25095_061+B25095_062+B25095_063+B25095_069+B25095_070+B25095_071+B25095_072,
+         CostBurdenedPer = CostBurdened/B25095_001) %>%
+	select(City ,CostBurdened,CostBurdenedPer) %>%
+  left_join(Barnstable.MA, MA.CostBurdened.ba, by="City")
+
+Barnstable.MA <- cbind(MA.CostBurdened.ba)
+```
+* The number of households, who spend 30 percent or more on housing costs in `r Barnstable.MA$City` is `r Barnstable.MA$CostBurdened` which is `r (round(Barnstable.MA$CostBurdenedPer,3))*100`% of total number of households, who spend money on housing costs.
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Barnstable.MA$Homelessness <- NA
+```
+
+
+
+\
+
+### Local/State Policies + Assistance on Rent Deferment
+\
+
+* "CapeCod commission raised 700,500 Dollar of a $1.5 Million goal for the Workforce Housing Relief Fund. These funds will help to support more than 300 families over several months as their households and the community recovers. Funding comes from towns and foundations, as well as individual donors".(https://capecodcommission.org/our-work/cape-cod-covid19)
+
+
+
+
+
+
+
+
+
+

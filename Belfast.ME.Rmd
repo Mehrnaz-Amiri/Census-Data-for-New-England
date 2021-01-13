@@ -1,0 +1,1726 @@
+---
+title: "Municipal Indicators For Belfast, ME"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  html_notebook:
+    toc: yes
+    toc_depth: 3
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '3'
+---
+
+In this report, 41 demographic, educational institutions, employment, infrastructure, healthcare, municipal finances, food insecurity, and housing variables are presented using federally-published data sources for the city of Belfast, ME. To better demonstrate their ties to geography of the city, the variables have been mapped on the block group level. \
+
+
+## Demographic
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+                                 #######################################################
+                                 #       Municipal Indicators For Municipalities        #               
+                                 #######################################################
+library(stringr)
+library(tidycensus)
+library(tidyverse)
+library(tigris)
+library(totalcensus)
+
+options(tigris_class = "sf",tigris_use_cache = T)
+# Get API key 
+# census_api_key("045944708d514a404443c9f2d227ac8bf6a8f8bd", install = TRUE, overwrite=TRUE)
+# Specify the end year 
+# This is for 5-year estimates
+endyr <- 2018
+# List of ACS variables
+Var_List <- tidycensus::load_variables(year = endyr, dataset = "acs5", cache = T)
+# View(Var_List)
+```
+
+
+\
+
+
+### Population  Size
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+                                             #--------------------#
+                                             #    DEMOGRAPHIC     #
+                                             #--------------------#
+
+##############################################    Population  Size    ###########################################################
+library(tidyverse)
+# set_path_to_census("C:\\Users\\ux305\\Desktop\\census")
+ME.pop <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = "B01003_001",
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+				 rename(TotalPop = population,
+				        City = NAME) %>% dplyr::select(City, TotalPop)
+
+Belfast.ME <- cbind(ME.pop)
+
+```
+
+The total population of `r Belfast.ME$City` is `r Belfast.ME$TotalPop`. Followed is the population size map of the city.\
+\
+
+```{r , echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+Pop <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="ME",
+													 county = "Waldo",
+													 year = endyr,
+													 output = "wide",
+													 variables = "B01003_001", # Total Population
+													 keep_geo_vars = T, geometry = TRUE)
+
+Pop <- Pop %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+library(tmap)
+# tmap_mode('view')
+tm_shape(Pop) + tm_polygons('B01003_001E' , palette="seq", style = "fixed", breaks=c(0,851,1054,1257,1460,1866), title = "Total Population")  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray")+ tmap_options(show.messages = FALSE) 
+```
+\
+
+
+### Population Age
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##############################################    Population  Age   #############################################################
+ME.Age <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B01001_003","B01001_004","B01001_005","B01001_006",
+													 							"B01001_027","B01001_028","B01001_029","B01001_030", # Under 5 years; Between 5 to 17
+													 							"B01001_007","B01001_008","B01001_009",
+													 							"B01001_010","B01001_011","B01001_012",
+													 							"B01001_036","B01001_035","B01001_034",
+													 							"B01001_033","B01001_032","B01001_031", # 18 to 24 years; 25 to 34 years
+													 							"B01001_013","B01001_014","B01001_015",
+													 							"B01001_016","B01001_017","B01001_018","B01001_019",
+													 							"B01001_043","B01001_042","B01001_041","B01001_040",
+													 							"B01001_039","B01001_038","B01001_037", # 35 to 44 years; 45 to 54 years; 55 to 59 years; 60 to 64 years
+													 							"B01001_020","B01001_021","B01001_022",
+													 							"B01001_023","B01001_024","B01001_025",
+													 							"B01001_044","B01001_045","B01001_046",
+													 							"B01001_047","B01001_048","B01001_049","B01003_001"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+				 mutate(AgeU18 = B01001_003+B01001_004+B01001_005+B01001_006+B01001_027+B01001_028+B01001_029+B01001_030, 
+				 Age1834 = B01001_007+B01001_008+B01001_009+B01001_010+B01001_011+B01001_012+B01001_036+B01001_035+B01001_034+B01001_033+B01001_032+B01001_031,
+				 Age3564 = B01001_013+B01001_014+B01001_015+B01001_016+B01001_017+B01001_018+B01001_019+B01001_043+B01001_042+B01001_041+B01001_040+B01001_039+B01001_038+B01001_037,
+				 AgeO65 = B01001_020+B01001_021+B01001_022+B01001_023+B01001_024+B01001_025+B01001_044+B01001_045+B01001_046+B01001_047+B01001_048+B01001_049) %>%
+  	mutate(AgeU18Per = AgeU18/population,
+				 Age1834Per = Age1834/population,
+				 Age3564Per = Age3564/population,
+				 AgeO65Per = AgeO65/population) %>%
+dplyr::select(AgeU18,Age1834,Age3564,AgeO65,AgeU18Per,Age1834Per,Age3564Per,AgeO65Per, City) %>%
+  left_join(Belfast.ME, ME.Age, by="City")
+
+Belfast.ME <- cbind(ME.Age)
+
+```
+* The number of people, who are younger than 18 Years old is `r Belfast.ME$AgeU18` in `r Belfast.ME$City` 
+, which is `r (round(Belfast.ME$AgeU18Per,4))*100`% of total population in `r Belfast.ME$City`. \
+* The number of people, who are between 18 and 34 years old is `r Belfast.ME$Age1834` in `r Belfast.ME$City`, which is `r (round(Belfast.ME$Age1834Per,4))*100`% of total population in `r Belfast.ME$City`.\
+* The number of people, who are between 35 and 64 years old is `r Belfast.ME$Age3564` in `r Belfast.ME$City`, which is `r (round(Belfast.ME$Age3564Per,4))*100`% of total population in `r Belfast.ME$City`.\
+* The number of people, who are older than 65 years old is `r Belfast.ME$AgeO65` in `r Belfast.ME$City`, which is `r (round(Belfast.ME$AgeO65Per,4))*100`% of total population in `r Belfast.ME$City`.\
+
+Followed is the population age map of the city.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+## Map
+age <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="ME",
+													 county = "Waldo",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_003","B01001_004","B01001_005","B01001_006",
+													 							"B01001_027","B01001_028","B01001_029","B01001_030", # Under 5 years; Between 5 to 17
+													 							"B01001_007","B01001_008","B01001_009",
+													 							"B01001_010","B01001_011","B01001_012",
+													 							"B01001_036","B01001_035","B01001_034",
+													 							"B01001_033","B01001_032","B01001_031", # 18 to 24 years; 25 to 34 years
+													 							"B01001_013","B01001_014","B01001_015",
+													 							"B01001_016","B01001_017","B01001_018","B01001_019",
+													 							"B01001_043","B01001_042","B01001_041","B01001_040",
+													 							"B01001_039","B01001_038","B01001_037", # 35 to 44 years; 45 to 54 years; 55 to 59 years; 60 to 64 years
+													 							"B01001_020","B01001_021","B01001_022",
+													 							"B01001_023","B01001_024","B01001_025",
+													 							"B01001_044","B01001_045","B01001_046",
+													 							"B01001_047","B01001_048","B01001_049","B01003_001"), # Total Population
+													 keep_geo_vars = T, geometry = TRUE) %>%
+mutate(AgeU18 = B01001_003E+B01001_004E+B01001_005E+B01001_006E+B01001_027E+B01001_028E+B01001_029E+B01001_030E, 
+				 Age1834 = B01001_007E+B01001_008E+B01001_009E+B01001_010E+B01001_011E+B01001_012E+B01001_036E+B01001_035E+B01001_034E+B01001_033E+B01001_032E+B01001_031E,
+				 Age3564 = B01001_013E+B01001_014E+B01001_015E+B01001_016E+B01001_017E+B01001_018E+B01001_019E+B01001_043E+B01001_042E+B01001_041E+B01001_040E+B01001_039E+B01001_038E+B01001_037E,
+				 AgeO65 = B01001_020E+B01001_021E+B01001_022E+B01001_023E+B01001_024E+B01001_025E+B01001_044E+B01001_045E+B01001_046E+B01001_047E+B01001_048E+B01001_049E)  %>% 
+  rename(AgeU18_BG = AgeU18,
+				 Age1834_BG = Age1834,
+				 Age3564_BG = Age3564,
+				 AgeO65_BG = AgeO65) %>%
+	mutate(AgeU18Per_BG = ((AgeU18_BG/B01003_001E)*100),
+				 Age1834Per_BG = ((Age1834_BG/B01003_001E)*100),
+				 Age3564Per_BG = ((Age3564_BG/B01003_001E)*100),
+				 AgeO65Per_BG = ((AgeO65_BG/B01003_001E)*100))  %>%
+  dplyr::select(GEOID, AgeU18_BG, Age1834_BG, Age3564_BG, AgeO65_BG, AgeU18Per_BG, Age1834Per_BG, Age3564Per_BG, AgeO65Per_BG)
+
+age <- age %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+library(tmap)
+# tmap_mode('view')
+tm_shape(age) + tm_polygons(c('AgeU18Per_BG','Age1834Per_BG',"Age3564Per_BG","AgeO65Per_BG") , palette=list("Oranges", "Greens", "Blues", "Purples") ,style = "quantile", title = c('AgeU18','Age1834',"Age3564","AgeO65"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent))  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) 
+
+```
+
+\
+
+### Median Household Income
+\
+
+```{r  echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#################################################    Median Household Income    ##############################################################
+
+ME.MHI <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = "B19013_001",
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+				 rename(MedHouseIncome = B19013_001,
+				        City = NAME) %>% 
+	dplyr::select(City, MedHouseIncome) %>%
+  left_join(Belfast.ME, ME.MHI, by="City")
+Belfast.ME <- cbind(ME.MHI)
+```
+* The median household income in the past 12 months is 60993 Dollar in `r Belfast.ME$City`.\
+Followed is the Median Household Income map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+income <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="ME",
+													 county = "Waldo",
+													 year = endyr,
+													 variables = "B19013_001", # Total Population
+													 keep_geo_vars = T, geometry = TRUE)
+
+income  <- income  %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+make_dollar <- function(x, digits = 0) {
+  paste0("$", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+library(tmap)
+# tmap_mode('view')
+tm_shape(income ) + tm_polygons('estimate' , palette="seq", style = "fixed", breaks=c(0,41481,46414,51347,56280,66146), title = "Median Household Income", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar))  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) 
+
+```
+
+\
+
+### Racial Breakdown 
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##############################################      Racial Breakdown     ###################################################################
+ME.Race <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B03002_003", # white alone
+																					"B03002_004", # black or African American alone
+																					"B03002_006", # Asian alone
+																					"B03002_012", # Hispanic or Latino alone
+																					"B03002_009"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+				 rename(White = B03002_003,
+				 Black = B03002_004,
+				 Asian = B03002_006,
+				 Hispanic = B03002_012,
+				 TwoOrMore = B03002_009,
+				 City = NAME) %>% 
+  mutate(WhitePer = (White/population),
+         BlackPer = (Black/population),
+         AsianPer = (Asian/population),
+         HispanicPer = (Hispanic/population),
+         TwoOrMorePer = (TwoOrMore/population)) %>%
+	dplyr::select(City, White, Black, Asian, Hispanic, TwoOrMore,
+	       WhitePer, BlackPer, AsianPer, HispanicPer, TwoOrMorePer) %>%
+  left_join(Belfast.ME, ME.Race, by="City")
+Belfast.ME <- cbind(ME.Race)
+```
+* The number of people who are white in `r Belfast.ME$City` is `r Belfast.ME$White` which is `r (round(Belfast.ME$WhitePer,4))*100`% of total population in `r Belfast.ME$City`.\
+* The number of people who are black in `r Belfast.ME$City` is `r Belfast.ME$Black` which is `r (round(Belfast.ME$BlackPer,4))*100`% of total population in `r Belfast.ME$City`.\
+* The number of people who are asian in `r Belfast.ME$City` is `r Belfast.ME$Asian`.\
+* The number of people who are hispanic in `r Belfast.ME$City` is `r Belfast.ME$Hispanic` which is `r (round(Belfast.ME$HispanicPer,4))*100`% of total population in `r Belfast.ME$City`.\
+* The number of people who have two or more races in `r Belfast.ME$City` is `r Belfast.ME$TwoOrMore` which is `r (round(Belfast.ME$TwoOrMorePer,4))*100`% of total population in `r Belfast.ME$City`. \
+Followed is the Racial Breakdown map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+## Map
+race <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="ME",
+													 county = "Waldo",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B03002_003", # white alone
+																					"B03002_004", # black or African American alone
+																					"B03002_006", # Asian alone
+																					"B03002_012", # Hispanic or Latino alone
+																					"B03002_009",
+																					"B01003_001"), # Total Population
+													 keep_geo_vars = T, geometry = TRUE) %>%
+rename(White_BG = B03002_003E,
+				 Black_BG = B03002_004E,
+				 Asian_BG = B03002_006E,
+				 Hispanic_BG = B03002_012E,
+				 TwoOrMore_BG = B03002_009E) %>%
+  mutate(WhitePer_BG = (White_BG/B01003_001E)*100,
+         BlackPer_BG = (Black_BG/B01003_001E)*100,
+         AsianPer_BG = (Asian_BG/B01003_001E)*100,
+         HispanicPer_BG = (Hispanic_BG/B01003_001E)*100,
+         TwoOrMorePer_BG = (TwoOrMore_BG/B01003_001E)*100) %>%
+  dplyr::select(GEOID, White_BG, Black_BG, Asian_BG, Hispanic_BG, TwoOrMore_BG,
+         WhitePer_BG, BlackPer_BG, AsianPer_BG, HispanicPer_BG, TwoOrMorePer_BG) 
+
+race  <- race  %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+library(tmap)
+# tmap_mode('view')
+tm_shape(race) + tm_polygons(c("WhitePer_BG", "BlackPer_BG", "AsianPer_BG", "HispanicPer_BG", "TwoOrMorePer_BG") , palette=list("Oranges", "Greens", "Blues", "Purples", "Reds"), style = "quantile", title = c("White", "Black", "Asian","Hispanic", "TwoOrMore"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent))  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) 
+
+```
+
+
+\
+
+### Gender Breakdown
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#####################################################    Gender Breakdown    #############################################################
+
+ME.Sex <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B01001_026",
+													               "B01001_002"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  mutate(SexRatio = B01001_026/B01001_002) %>%
+  rename(Female = B01001_026,
+				 Male = B01001_002,
+				 City = NAME) %>%
+  mutate(FemalePer = Female/population,
+				 MalePer = Male/population) %>% 
+	dplyr::select(City, SexRatio, Female, Male, FemalePer, MalePer) %>%
+  left_join(Belfast.ME, ME.Sex, by="City")
+
+Belfast.ME <- cbind(ME.Sex)
+
+```
+* The number of females in `r Belfast.ME$City` is `r Belfast.ME$Female` which is `r 100*(round(Belfast.ME$FemalePer,2))`% of total population in `r Belfast.ME$City`.\
+* The number of males in `r Belfast.ME$City` is `r Belfast.ME$Male` which is `r 100*(round(Belfast.ME$MalePer,2))`% of total population in `r Belfast.ME$City`.\
+* The ratio of number of females to males in `r Belfast.ME$City` is `r Belfast.ME$SexRatio`.\
+Followed is the Gender Breakdown map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+sex <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="ME",
+													 county = "Waldo",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_026",
+													               "B01001_002",
+													               "B01003_001"), # Total Population
+													 keep_geo_vars = T, geometry = TRUE) %>%
+mutate(SexRatio = B01001_026E/B01001_002E) %>%
+  rename(Female = B01001_026E,
+				 Male = B01001_002E) %>%
+  mutate(FemalePer = (Female/B01003_001E)*100,
+         MalePer = (Male/B01003_001E)*100) %>%
+	dplyr::select(GEOID, Female, Male, SexRatio, FemalePer, MalePer) 
+
+sex <- sex %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+library(tmap)
+# tmap_mode('view')
+tm_shape(sex) + tm_polygons(c('Female', 'Male'), palette=list("Purples", "Reds"), title = c("Female","Male"))  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray")+ tmap_options(show.messages = FALSE) 
+
+
+tm_shape(sex) + tm_polygons(c('FemalePer', 'MalePer'), palette=list("Blues", "Oranges"), title = c("Female Percentage","Male Percentage"),popup.format = list(fun = make_percent), legend.format = list(fun = make_percent)) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray")+ tmap_options(show.messages = FALSE) 
+```
+
+
+\
+
+
+### Average Household Size
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#################################################    Average Household Size    ############################################################
+
+ME.AveHH.Size <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B11002_001", 
+															         "B19001_001"), # Total households
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(AveHouseH = B11002_001/B19001_001) %>%
+	dplyr::select(City, AveHouseH) %>%
+  left_join(Belfast.ME, ME.AveHH.Size, by="City")
+
+Belfast.ME <- cbind(ME.AveHH.Size)
+
+```
+* The average household size is `r round(Belfast.ME$AveHouseH,2)` in `r Belfast.ME$City`.\
+Followed is the Average Household Size map of the city.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+HH.size <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state="ME",
+															county = "Waldo",
+															year = endyr,
+															output = "wide",
+															variables = c("B11002_001", # Household type by relatives and nonrelatives for population in households
+															              "B19001_001"), # Household income in the pas 12 months
+															keep_geo_vars = T, geometry = TRUE) %>%
+  mutate(AveHouseH = B11002_001E/B19001_001E) %>%
+ dplyr::select(GEOID, AveHouseH) 
+
+HH.size <- HH.size %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+
+tm_shape(HH.size) + tm_polygons("AveHouseH", style = "quantile", palette="Purples", border.col = "darkgray", title="Ave Household Size") + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite") + tmap_options(show.messages = FALSE)
+
+```
+
+\
+
+### Educational Attainment
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################   Educational Attainment    ##################################################################
+ME.Educ <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B15002_001", # variables for Sex by Edu Attainment for Population 25 yrs or Over
+																					"B15002_003","B15002_004","B15002_005",
+																					"B15002_006","B15002_007","B15002_008","B15002_009","B15002_010",
+																					"B15002_020","B15002_021","B15002_022","B15002_023","B15002_024",
+																					"B15002_025","B15002_026","B15002_027",
+																					"B15002_011","B15002_028",
+																					"B15002_012","B15002_013","B15002_014",
+																					"B15002_029","B15002_030","B15002_031",
+																					"B15002_015","B15002_032",
+																					"B15002_016","B15002_033",
+																					"B15002_017","B15002_034",
+																					"B15002_018","B15002_035"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(LessThanHS = (B15002_003+B15002_004+B15002_005+B15002_006+B15002_007+B15002_008+B15002_009+B15002_010+B15002_020+B15002_021+B15002_022+B15002_023+B15002_024+B15002_025+B15002_026+B15002_027),
+				 HSGrad = (B15002_011 + B15002_028),
+				 SomeColl = (B15002_012+ B15002_013 + B15002_014 + B15002_029 + B15002_030 + B15002_031),
+				 Bach = (B15002_015 + B15002_032),
+				 Master = (B15002_016 + B15002_033),
+				 Prof = (B15002_017 + B15002_034),
+				 Doc = (B15002_018 + B15002_035),
+				 LessThanHSPer = (LessThanHS/population),
+         HSGradPer = (HSGrad/population),
+         SomeCollPer = (SomeColl/population),
+         BachPer = (Bach/population),
+         MasterPer = (Master/population),
+         ProfPer = (Prof/population),            
+         DocPer = (Doc/population)) %>%
+	dplyr::select(City, LessThanHS, HSGrad, SomeColl, Bach, Master, Prof, Doc,
+	       LessThanHSPer, HSGradPer, SomeCollPer, BachPer, MasterPer, ProfPer, DocPer) %>% 
+  left_join(Belfast.ME, ME.Educ, by="City") 
+
+Belfast.ME <- cbind(ME.Educ)
+
+```
+* The number of people, who have less than high school degree is `r  Belfast.ME$LessThanHS` in `r Belfast.ME$City` which is `r (round(Belfast.ME$LessThanHSPer,4))*100`% of the population who are 25 years old or older in `r Belfast.ME$City`.\
+* The number of people, who have high school degree is `r  Belfast.ME$HSGrad` in `r Belfast.ME$City` which is `r (round(Belfast.ME$HSGradPer,4))*100`% of the population who are 25 years old or older in `r Belfast.ME$City`.\
+* The number of people, who have some college degree is `r  Belfast.ME$SomeColl` in `r Belfast.ME$City` which is `r (round(Belfast.ME$SomeCollPer,4))*100`% of the population who are 25 years old or older in `r Belfast.ME$City`.\
+* The number of people, who have bachelor degree is `r Belfast.ME$Bach` in `r Belfast.ME$City` which is `r (round(Belfast.ME$BachPer,4))*100`% of the population who are 25 years old or older in `r Belfast.ME$City`.\
+* The number of people, who have master's degree is `r  Belfast.ME$Master` in `r Belfast.ME$City` which is `r (round(Belfast.ME$MasterPer,4))*100`% of the population who are 25 years old or older in `r Belfast.ME$City`.\
+* The number of people, who have professional school degree is `r  Belfast.ME$Prof` in `r Belfast.ME$City` which is `r (round(Belfast.ME$ProfPer,4))*100`% of the population who are 25 years old or older in `r Belfast.ME$City`.\
+* The number of people, who have doctorate degree is `r  Belfast.ME$Doc` in `r Belfast.ME$City` which is `r (round(Belfast.ME$DocPer,4))*100`% of the population who are 25 years old or older in `r Belfast.ME$City`.\
+Followed is the Educational Attainment map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+Educ <- tidycensus::get_acs(geography = "block group",
+														survey="acs5",
+														state="ME",
+														county="Waldo",
+														year = endyr,
+														output = "wide",
+														variables = c("B15002_001", # variables for Sex by Edu Attainment for Population 25 yrs or Over
+																					"B15002_003","B15002_004","B15002_005",
+																					"B15002_006","B15002_007","B15002_008","B15002_009","B15002_010",
+																					"B15002_020","B15002_021","B15002_022","B15002_023","B15002_024",
+																					"B15002_025","B15002_026","B15002_027",
+																					"B15002_011","B15002_028",
+																					"B15002_012","B15002_013","B15002_014",
+																					"B15002_029","B15002_030","B15002_031",
+																					"B15002_015","B15002_032",
+																					"B15002_016","B15002_033",
+																					"B15002_017","B15002_034",
+																					"B15002_018","B15002_035"),keep_geo_vars = T, geometry = TRUE) %>%
+  mutate(LessThanHS_BG = (B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E),
+				 HSGrad_BG = (B15002_011E + B15002_028E),
+				 SomeColl_BG = (B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E),
+				 Bach_BG = (B15002_015E + B15002_032E),
+				 Master_BG = (B15002_016E + B15002_033E),
+				 Prof_BG = (B15002_017E + B15002_034E),
+				 Doc_BG = (B15002_018E + B15002_035E),
+		    LessThanHSPer_BG = ((B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E)/B15002_001E)*100,
+				 HSGradPer_BG = ((B15002_011E + B15002_028E)/B15002_001E)*100,
+				 SomeCollPer_BG = ((B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E)/B15002_001E)*100,
+				 BachPer_BG = ((B15002_015E + B15002_032E)/B15002_001E)*100,
+				 MasterPer_BG = ((B15002_016E + B15002_033E)/B15002_001E)*100,
+				 ProfPer_BG = ((B15002_017E + B15002_034E)/B15002_001E)*100,
+				 DocPer_BG = ((B15002_018E + B15002_035E)/B15002_001E)*100) %>%
+	dplyr::select(GEOID, LessThanHS_BG, HSGrad_BG, SomeColl_BG, Bach_BG, Master_BG, Prof_BG, Doc_BG,
+	       LessThanHSPer_BG, HSGradPer_BG, SomeCollPer_BG, BachPer_BG, MasterPer_BG, ProfPer_BG, DocPer_BG) 
+Educ <- Educ %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+tm_shape(Educ) + tm_fill(c('LessThanHSPer_BG', 'HSGradPer_BG', 'SomeCollPer_BG', 'BachPer_BG', 'MasterPer_BG', 'ProfPer_BG', 'DocPer_BG'),
+        style="quantile", 
+        palette=list("Oranges", "Greens", "Blues", "Purples", "Reds","Dark2", "seq"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent), title=c('LessThanHS', 'HSGrad', 'SomeColl', 'Bach', 'Master', 'Prof', 'Doc')) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") + tmap_options(limits = c(facets.view = 7),show.messages = FALSE) 
+
+
+```
+
+\
+
+### Single Parent Households
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+##########################################      Single Parent Households     ##################################################################
+ME.Single <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B11001_006", # Female Hoseholder, No Husband Present
+																						"B11001_005", # Male Householder, No Wife Present
+																						"B11001_001"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(FemHeadPer = B11001_006/B11001_001,
+	       MaleHeadPer = B11001_005/B11001_001) %>%
+	dplyr::select(City, FemHeadPer, MaleHeadPer) %>%
+  left_join(Belfast.ME, ME.Single, by="City")
+
+Belfast.ME <- cbind(ME.Single)
+```
+* The percentage of single-female-headed is `r (round(Belfast.ME$FemHeadPer,4))*100`% of total number of family households in `r Belfast.ME$City`.\
+* The percentage of single-male-headed is `r (round(Belfast.ME$MaleHeadPer,4))*100`% of total number of family households in `r Belfast.ME$City`.\
+Followed is the Single Parent Households map of the city.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+single <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state="ME",
+													 county = "Waldo",
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B11001_006", # Female Hoseholder, No Husband Present
+																						"B11001_005", # Male Householder, No Wife Present
+																						"B11001_001"), # Total Population
+													 keep_geo_vars = T, geometry = TRUE) %>%
+mutate(FemHeadPer = (B11001_006E/B11001_001E)*100,
+	       MaleHeadPer = (B11001_005E/B11001_001E)*100) %>%
+	dplyr::select(GEOID, FemHeadPer, MaleHeadPer)
+
+single <- single %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+library(tmap)
+tm_shape(single) + tm_polygons(c("FemHeadPer", "MaleHeadPer"), style="quantile", palette=list("Oranges", "Purples"),popup.format = list(fun = make_percent), legend.format = list(fun = make_percent), border.col = "darkgray", title=c("Female Householder", "Male Householder")) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite") + tmap_options(show.messages = FALSE) 
+
+
+```
+
+
+\
+
+
+### Population in Poverty
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+###########################################      Population in Poverty    ######################################################################
+
+ME.PopPov <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B17010_002", # Income in the Past 12 Months Below Poverty Level (Family households in poverty)
+																					"B17010_001",  # Total Families Below Poverty Level
+																					"B17001_002", # Persons below poverty
+																					"B17001_001"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  	mutate(FamPovPer = B17010_002/B17010_001,
+	       PopPovPer = B17001_002/B17001_001,
+	       TotalPopPov = B17001_002) %>%
+	dplyr::select(City, FamPovPer, PopPovPer, TotalPopPov) %>%
+  left_join(Belfast.ME,ME.PopPov, by="City")
+
+Belfast.ME <- cbind(ME.PopPov )
+
+```
+* The percentage of family, who are in poverty is `r (round(Belfast.ME$FamPovPer,4))*100` % in `r Belfast.ME$City`.\
+* The percentage of population, who are in poverty is `r (round(Belfast.ME$PopPovPer,4))*100` % in `r Belfast.ME$City`.\
+* The total number of people, who are in poverty is `r Belfast.ME$TotalPopPov`  in `r Belfast.ME$City`.\
+Followed is the Population in Poverty map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+
+pop.pov <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state="ME",
+															county = "Waldo",
+															year = endyr,
+															output = "wide",
+															variables = c("B17010_002", # Income in the Past 12 Months Below Poverty Level (Family households in poverty)
+																					"B17010_001",  # Total Families Below Poverty Level
+																					"B17001_002", # Persons below poverty
+																					"B17001_001"), # Household income in the pas 12 months
+															keep_geo_vars = T, geometry = TRUE) %>%
+	mutate(FamPovPer_BG = (B17010_002E/B17010_001E)*100,
+	       PopPovPer_BG = (B17001_002E/B17001_001E)*100,
+	       TotalPopPov_BG = B17001_002E) %>%
+	dplyr::select(GEOID, FamPovPer_BG, PopPovPer_BG, TotalPopPov_BG) 
+
+pop.pov <- pop.pov %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+# tmap_mode('view')
+tm_shape(pop.pov) + tm_polygons("FamPovPer_BG", style="quantile", palette="Purples", border.col = "darkgray", title="Family in Poverty",popup.format = list(fun = make_percent), legend.format = list(fun = make_percent)) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+
+
+```
+
+\
+
+
+### Elderly People Living Alone
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+########################################     Elderly People Living Alone    ##############################################################
+ME.old <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B11010_005", # Male householder, Living alone, 65 years and over
+																					"B11010_012", # Female householder, Living alone, 65 years and over
+																					"B11010_001"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(OldAlonePer = (B11010_012 + B11010_005)/B11010_001) %>%
+  dplyr::select(City, OldAlonePer) %>%
+  left_join(Belfast.ME,ME.old, by="City")
+
+Belfast.ME <- cbind(ME.old) 
+# paste("The percentage of householders, who are living alone and are older than 65 years old is",(round(Belfast.ME$OldAlonePer,4))*100,"% in",Belfast.ME$City)
+
+## GIVE US NA
+```
+* The percentage of householders, who are living alone and are older than 65 years old is `r (round(Belfast.ME$OldAlonePer,4))*100`% in `r Belfast.ME$City`.\
+
+
+\
+
+## Educational Institutions
+\
+\
+
+### Number/Type of Schools
+\
+
+* `r Belfast.ME$City` has 1 public school district, which contains 1,556 students and 4 public schools. Also, `r Belfast.ME$City` has 2 private schools.(https://nces.ed.gov/) and (http://www.usa.com/belfast-me-private-schools.htm)
+
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Belfast.ME$SchoolsDistrict <- 1
+Belfast.ME$SchoolsDistStudents <- 1556
+Belfast.ME$PubSchools <- 4
+Belfast.ME$PvSchools <- 2
+```
+
+
+\
+
+
+### Number/Type of Universities
+\
+
+* `r Belfast.ME$City` has 0 universities in 04915 ZIP Code.(https://nces.ed.gov/)\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Belfast.ME$NumUni <- 0
+```
+
+
+\
+
+###	Employment Numbers per Institution
+\
+
+
+* Belfast School District in `r Belfast.ME$City` contains 320 teachers and 431 other staffs. The total number of teachers in all private schools in `r Belfast.ME$City` is 7.(http://www.usa.com/)\
+
+
+\
+
+
+### Number of PK-12 Enrollment in Schools
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+############################################################################################################################
+
+                                             # ----------------------------- #
+                                             #    Educational Institutions   #
+                                             #-------------------------------#
+
+# Number of PK-12 Enrollment at block group level
+ME.Enrol <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B14001_003", # Enrolled in preschool
+																					"B14001_004", # Enrolled in kindergarten
+																					"B14001_005", # Enrolled in grade 1 to 4
+																					"B14001_006", # Enrolled in grade 5 to 8
+																					"B14001_007"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(EnrolPK12 = B14001_003 + B14001_004 + B14001_005 + B14001_006 + B14001_007) %>%
+	dplyr::select(City, EnrolPK12) %>%
+  left_join(Belfast.ME, ME.Enrol, by="City")
+
+Belfast.ME <- cbind(ME.Enrol)
+
+# paste("The total number of students, who enrolled in preschools to 12 grade levels in",Belfast.ME$City,"schools is",Belfast.ME$EnrolPK12)
+
+```
+* The total number of students, who enrolled in preschools to 12 grade levels in `r Belfast.ME$City` schools is `r Belfast.ME$EnrolPK12`.\
+
+\
+
+
+## Employment
+\
+
+
+### Number of Jobs within Community Boundaries
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+########################################################################################################################################
+
+                                                #----------------------#
+                                                #       EMPLOYMENT     #
+                                                #----------------------#
+
+
+##########################################    Number of Jobs within Community Boundaries   #############################################
+ME.Num.Jobs <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = "B08008_003",
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME,
+         NumJobs = B08008_003) %>% 
+	dplyr::select(City, NumJobs) %>%
+  left_join(Belfast.ME, ME.Num.Jobs, by="City")
+
+Belfast.ME <- cbind(ME.Num.Jobs)
+
+# paste("The number of jobs within community boundaries in",Belfast.ME$City,"is",Belfast.ME$NumJobs)
+```
+* The number of jobs within community boundaries in `r Belfast.ME$City` is `r Belfast.ME$NumJobs`.\
+
+Followed is the map of Number of Jobs within Community Boundaries of the city.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+## MAP
+
+job <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state="ME",
+															county = "Waldo",
+															year = endyr,
+															output = "wide",
+															variables = "B08008_003", 
+															keep_geo_vars = T, geometry = TRUE) %>%
+  rename(NumJobs = B08008_003E) %>% dplyr::select(GEOID,NumJobs)
+
+job <- job %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+# tmap_mode('view')
+tm_shape(job) + tm_polygons("NumJobs", style="jenks", palette="Purples", border.col = "darkgray", title="Number of Jobs") + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+
+```
+
+\
+
+
+### Labor Force (Total number, participation)
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+############################################# Labor Force (Total number, participation)  ####################################
+
+ME.Labors <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B23025_002", # Number of Labor Force 16 years and over
+														              "B23025_003", # Number of Civilian Labor Force 16 years and over
+														              "B23025_006", # Number of Armed Forces 16 years and over
+														              "B23025_001"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>% 
+  mutate(LabForce = B23025_002,
+	       LabForcePer = B23025_002/B23025_001,
+	       CivLabForce = B23025_003,
+	       CivLabForcePer = B23025_003/B23025_001,
+	       Military = B23025_006,
+	       MilitaryPer = 	B23025_006/B23025_001,
+	       TotalWorkers = B23025_001) %>%
+	dplyr::select(City, LabForce, LabForcePer, CivLabForce, CivLabForcePer, Military, MilitaryPer, TotalWorkers)  %>%
+  left_join(Belfast.ME, ME.Labors, by="City")
+
+Belfast.ME <- cbind(ME.Labors)
+
+```
+* The number of labor force, who are 16 years and older in `r Belfast.ME$City` is `r Belfast.ME$LabForce` which is `r round(Belfast.ME$LabForcePer,2)` of total number of labors of which `r Belfast.ME$CivLabForce` are civilian labor forces and `r Belfast.ME$Military` are armed labor forces.\
+Followed is the map of Labor Force of the city.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+## MAP
+labors <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state="ME",
+															county = "Waldo",
+															year = endyr,
+															output = "wide",
+															variables = c("B23025_002", # Number of Labor Force 16 years and over
+														              "B23025_003", # Number of Civilian Labor Force 16 years and over
+														              "B23025_006", # Number of Armed Forces 16 years and over
+														              "B23025_001"), 
+															keep_geo_vars = T, geometry = TRUE) %>%
+  	mutate(LabForce = B23025_002E,
+	       LabForcePer = B23025_002E/B23025_001E,
+	       CivLabForce = B23025_003E,
+	       CivLabForcePer = B23025_003E/B23025_001E,
+	       Military = B23025_006E,
+	       MilitaryPer = 	B23025_006E/B23025_001E,
+	       TotalWorkers = B23025_001E)  %>% dplyr::select(GEOID,LabForce)
+
+labors <- labors %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+# tmap_mode('view')
+tm_shape(labors) + tm_polygons("LabForce", style="jenks", palette="seq", border.col = "darkgray", title="Number of Labors") + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+
+
+```
+
+\
+
+### Employed and Unemployed
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#####################################################    Employed and Unemployed   ####################################
+
+ME.Emp.Unemp <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B23025_003", # Number of civilian Labor Force 16 years and over
+														              "B23025_004", # Number of Employed individuals 16 years and over
+														              "B23025_005"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(EmpRate = B23025_004/B23025_003,
+	       UnempRate = B23025_005/B23025_003,
+	       EmployedCLF = B23025_004,
+	       UnemployedCLF = B23025_005) %>%
+	dplyr::select(City ,EmpRate, UnempRate, EmployedCLF, UnemployedCLF) %>%
+  left_join(Belfast.ME, ME.Emp.Unemp, by="City")
+
+Belfast.ME <- cbind(ME.Emp.Unemp)
+
+# paste("The rate of employment in",Belfast.ME$City,"is",round(Belfast.ME$EmpRate,2)*100,"%")
+# paste("The rate of unemployment in",Belfast.ME$City,"is",round(Belfast.ME$UnempRate,2)*100,"%")
+```
+* The rate of employment in `r Belfast.ME$City` is `r round(Belfast.ME$EmpRate,2)*100`%.\
+* The rate of unemployment in `r Belfast.ME$City` is `r round(Belfast.ME$UnempRate,2)*100`%.\
+
+Followed is Employed and Unemployed map of the city.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+## MAP
+
+emp <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state="ME",
+															county = "Waldo",
+															year = endyr,
+															output = "wide",
+															variables = c("B23025_003", # Number of civilian Labor Force 16 years and over
+														              "B23025_004", # Number of Employed individuals 16 years and over
+														              "B23025_005"), 
+															keep_geo_vars = T, geometry = TRUE) %>%
+	mutate(EmpRate_BG = B23025_004E/B23025_003E,
+	       UnempRate_BG = B23025_005E/B23025_003E,
+	       EmployedCLF_BG = B23025_004E,
+	       UnemployedCLF_BG = B23025_005E) %>% dplyr::select(GEOID,EmpRate_BG, UnempRate_BG)
+
+emp <- emp %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+# tmap_mode('view')
+tm_shape(emp) + tm_polygons(c("EmpRate_BG","UnempRate_BG"), style="jenks", palette=list("Greens","seq"), border.col = "darkgray", title=c("Employment rate","Unemployment rate")) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+
+```
+
+\
+
+
+### Major Employers by NCAIS Code
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+################################    Major Employers by NCAIS Code    ##########################################
+
+ME.Emp.NCAIS <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("C24030_002", # Number of male by industry for the civilian employed, 16 years and over
+														              "C24030_029", # Number of female by industry for the civilian employed, 16 years and over
+														              "C24030_001"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(MaleNCAIS = C24030_002,
+	       FemaleNCAIS = C24030_029,
+	       MaleNCAISPer = C24030_002/C24030_001,
+	       FemaleNCAISPer = C24030_029/C24030_001) %>%
+	dplyr::select(City , MaleNCAIS, FemaleNCAIS, MaleNCAISPer, FemaleNCAISPer) %>%
+  left_join(Belfast.ME, ME.Emp.NCAIS, by="City")
+
+Belfast.ME <- cbind(ME.Emp.NCAIS)
+
+# paste("Number of male by industry for the civilian employed in",Belfast.ME$City,"is",Belfast.ME$MaleNCAIS,"which is",round(Belfast.ME$MaleNCAISPer,2),"of population, who are 16 years and over")
+# 
+# paste("Number of female by industry for the civilian employed in",Belfast.ME$City,"is",Belfast.ME$FemaleNCAIS,"which is",round(Belfast.ME$FemaleNCAISPer,2),"of population, who are 16 years and over")
+```
+* Number of male by industry for the civilian employed in `r Belfast.ME$City` is `r Belfast.ME$MaleNCAIS` which is `r round(Belfast.ME$MaleNCAISPer,2)` of population, who are 16 years and over.\
+* Number of female by industry for the civilian employed in `r Belfast.ME$City` is `r Belfast.ME$FemaleNCAIS` which is `r round(Belfast.ME$FemaleNCAISPer,2)` of population, who are 16 years and over.\
+
+Followed is the map of the Major Employers by NCAIS Code of the city.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+## MAP
+majorEmp <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state="ME",
+															county = "Waldo",
+															year = endyr,
+															output = "wide",
+															variables = c("C24030_002", # Number of male by industry for the civilian employed, 16 years and over
+														              "C24030_029", # Number of female by industry for the civilian employed, 16 years and over
+														              "C24030_001"), 
+															keep_geo_vars = T, geometry = TRUE) %>%
+	  mutate(MaleNCAIS_BG = C24030_002E,
+	       FemaleNCAIS_BG = C24030_029E,
+	       MaleNCAISPer_BG = C24030_002E/C24030_001E,
+	       FemaleNCAISPer_BG = C24030_029E/C24030_001E)  %>%
+	dplyr::select(GEOID,MaleNCAIS_BG,FemaleNCAIS_BG,FemaleNCAISPer_BG,MaleNCAISPer_BG)
+
+majorEmp <- majorEmp %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+tm_shape(majorEmp) + tm_polygons(c("MaleNCAISPer_BG","FemaleNCAISPer_BG"), style="jenks", palette=list("Greens","seq"), border.col = "darkgray", title=c("MaleNCAIS Per","FemaleNCAIS Per")) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+
+tm_shape(majorEmp) + tm_polygons(c("MaleNCAIS_BG","FemaleNCAIS_BG"), style="jenks", palette=list("Greens","seq"), border.col = "darkgray", title=c("MaleNCAIS","FemaleNCAIS")) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+```
+
+\
+
+
+### Top Industries by NCAIS Code
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+######################################    Top Industries by NCAIS Code   ##################################################
+
+ME.Industries <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("C24030_003", # Agriculture, forestry, fishing and hunting, and mining (Male)
+														              "C24030_030", # Agriculture, forestry, fishing and hunting, and mining (Female)
+														              "C24030_006", # Construction (Male)
+														              "C24030_033", # Construction (Female)
+														              "C24030_007", # Manufacturing (Male)
+														              "C24030_034", # Manufacturing (Female)
+														              "C24030_008", # Wholesale trade (Male)
+														              "C24030_035", # Wholesale trade (Female)
+														              "C24030_009", # Retail trade (Male)
+														              "C24030_036", # Retail trade (Female)
+														              "C24030_010", # Transportation and warehousing, and utilities (Male)
+														              "C24030_037", # Transportation and warehousing, and utilities (Female)
+														              "C24030_013", # Information (Male)
+														              "C24030_040", # Information (Female)
+														              "C24030_014", # Finance and insurance, and real estate, and rental and leasing (Male)
+														              "C24030_041", # Finance and insurance, and real estate, and rental and leasing (Female)
+														              "C24030_017", # Professional, scientific, and management, and administrative, and waste management services (Male)
+														              "C24030_044", # Professional, scientific, and management, and administrative, and waste management services (Female)
+														              "C24030_021", # Educational services, and health care and social assistance (Male)
+														              "C24030_048", # Educational services, and health care and social assistance (Female)
+														              "C24030_024", # Arts, entertainment, and recreation, and accommodation and food services (Male)
+														              "C24030_051", # Arts, entertainment, and recreation, and accommodation and food services (Female)
+														              "C24030_027", # Other services, except public administration (Male)
+														              "C24030_054", # Other services, except public administration (Female)
+														              "C24030_028", # Public administration (Male)
+														              "C24030_055", # Public administration (Female)
+														              "C24030_001"), # Total,
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(Agriculture = (C24030_003 + C24030_030)/C24030_001,
+	       Construction = (C24030_006 + C24030_033)/C24030_001,
+	       Manufacturing = (C24030_007 + C24030_034)/C24030_001,
+	       WholesaleTrade = (C24030_008 + C24030_035)/C24030_001,
+	       RetailTrade = (C24030_009 + C24030_036)/C24030_001,
+	       Transportation = (C24030_010 + C24030_037)/C24030_001,
+	       Information = (C24030_013 + C24030_040)/C24030_001,
+	       Finance_Ins = (C24030_014 + C24030_041)/C24030_001,
+	       Professional = (C24030_017 + C24030_044)/C24030_001,
+	       Educ_Health_SocSvcs = (C24030_021 + C24030_048)/C24030_001,
+	       RecreationEtc = (C24030_024 + C24030_051)/C24030_001,
+	       OtherIndustries = (C24030_027 + C24030_054)/C24030_001,
+	       PublicAdmin = (C24030_028 + C24030_055)/C24030_001) %>%
+	dplyr::select(City,Agriculture,Construction,Manufacturing,WholesaleTrade,RetailTrade,Transportation,Information,
+	       Finance_Ins,Professional,Educ_Health_SocSvcs,RecreationEtc,OtherIndustries,PublicAdmin) %>%
+  left_join(Belfast.ME, ME.Industries, by="City")
+
+Belfast.ME <- cbind(ME.Industries)
+
+
+```
+* The percentage of people, who are in agriculture, forestry, fishing, hunting, and mining in `r Belfast.ME$City` is `r (round(Belfast.ME$Agriculture,4))*100`%.\
+
+* The percentage of people, who are in construction in `r Belfast.ME$City` state is `r (round(Belfast.ME$Construction,4))*100`%".\
+
+* The percentage of people, who are in manufacturing in `r Belfast.ME$City` state is `r (round(Belfast.ME$Manufacturing,4))*100`%.\
+
+* The percentage of people, who are in wholesale trade in `r Belfast.ME$City` state is `r (round(Belfast.ME$WholesaleTrade,4))*100`%.\
+
+* The percentage of people, who are in retail trade in `r Belfast.ME$City` state is `r (round(Belfast.ME$RetailTrade,4))*100`%.\
+
+* The percentage of people, who are in transportation and warehousing, and utilities in `r Belfast.ME$City` state is`r (round(Belfast.ME$Transportation,4))*100`%.\
+
+* The percentage of people, who are in information in `r Belfast.ME$City` state is `r (round(Belfast.ME$Information,4))*100`%.\
+
+* The percentage of people, who are in finance and insurance, and real estate, and rental and leasing in `r Belfast.ME$City` state is `r (round(Belfast.ME$Finance_Ins,4))*100`%.\
+
+* The percentage of people, who are in professional, scientific, and management, and administrative, and waste management services in `r Belfast.ME$City` state is `r (round(Belfast.ME$Professional,4))*100`%.\
+
+* The percentage of people, who are in educational services, and health care and social assistance in `r Belfast.ME$City` state is `r (round(Belfast.ME$Educ_Health_SocSvcs,4))*100`%.\
+
+* The percentage of people, who are in arts, entertainment, and recreation, and accommodation and food services in `r Belfast.ME$City` state is `r (round(Belfast.ME$RecreationEtc,4))*100`%.\
+
+* The percentage of people, who are in other services, except public administration in `r Belfast.ME$City` state is `r (round(Belfast.ME$OtherIndustries,4))*100`%.\
+
+* The percentage of people, who are in Public administration in `r Belfast.ME$City` state is `r (round(Belfast.ME$PublicAdmin,4))*100`%.\
+
+\
+
+### Earning Breakdown 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+###########################    Earning Breakdown   ####################################
+
+ME.Earning <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = "B20017_001",
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(MedEarning = B20017_001) %>%
+	dplyr::select(City,MedEarning) %>%
+  left_join(Belfast.ME, ME.Earning, by="City")
+
+Belfast.ME <- cbind(ME.Earning)
+
+```
+* The median earning in `r Belfast.ME$City` is 31673 Dollar.\
+Followed is the Median Earning map of the city.\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+## MAP
+earning <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state="ME",
+															county = "Waldo",
+															year = endyr,
+															output = "wide",
+															variables = "B20017_001", 
+															keep_geo_vars = T, geometry = TRUE) %>%
+	mutate(MedEarning = B20017_001E) %>%
+	dplyr::select(GEOID,MedEarning)
+
+earning <- earning %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+make_dollar <- function(x, digits = 0) {
+  paste0("$", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+library(tmap)
+# tmap_mode('view')
+tm_shape(earning) + tm_polygons("MedEarning" , palette="seq", style = "quantile", title = "Median Earning", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") 
+
+```
+
+
+\
+
+
+### Employee Age
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################    Employee Age   #############################################################
+
+ME.Emp.Age <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B23001_005","B23001_007","B23001_012","B23001_014","B23001_019","B23001_021","B23001_026","B23001_028", # Age 29 or younger male
+								"B23001_033","B23001_035","B23001_040","B23001_042","B23001_047","B23001_049", # Age 30 to 54 male
+								"B23001_054","B23001_056","B23001_061","B23001_063","B23001_068","B23001_070","B23001_075","B23001_080","B23001_085", # Age 55 or older male
+								"B23001_091","B23001_093","B23001_098","B23001_100","B23001_105","B23001_107","B23001_112","B23001_114", # Age 29 or younger female
+								"B23001_119","B23001_121","B23001_126","B23001_128","B23001_133","B23001_135", # Age 30 to 54 female
+								"B23001_140","B23001_142","B23001_147","B23001_149","B23001_154","B23001_156","B23001_161","B23001_166","B23001_171", # Age 55 or older female
+														              "B23001_001"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+         mutate(AgeEmpU29 = B23001_005+B23001_007+B23001_012+B23001_014+B23001_019+B23001_021+B23001_026+B23001_028+
+	         B23001_091+B23001_093+B23001_098+B23001_100+B23001_105+B23001_107+B23001_112+B23001_114,
+	       AgeEmp3054 = B23001_033+B23001_035+B23001_040+B23001_042+B23001_047+B23001_049+
+	         B23001_119+B23001_121+B23001_126+B23001_128+B23001_133+B23001_135,
+	       AgeEmpO55 = B23001_054+B23001_056+B23001_061+B23001_063+B23001_068+B23001_070+B23001_075+B23001_080+B23001_085+
+	        B23001_140+B23001_142+B23001_147+B23001_149+B23001_154+B23001_156+B23001_161+B23001_166+B23001_171,
+         
+         AgeEmpU29Per_BG = (B23001_005+B23001_007+B23001_012+B23001_014+B23001_019+B23001_021+B23001_026+B23001_028+
+	         B23001_091+B23001_093+B23001_098+B23001_100+B23001_105+B23001_107+B23001_112+B23001_114)/B23001_001,
+	        AgeEmp3054Per_BG = (B23001_033+B23001_035+B23001_040+B23001_042+B23001_047+B23001_049+
+	         B23001_119+B23001_121+B23001_126+B23001_128+B23001_133+B23001_135)/B23001_001,
+	       AgeEmpO55Per_BG = (B23001_054+B23001_056+B23001_061+B23001_063+B23001_068+B23001_070+B23001_075+B23001_080+B23001_085+
+	        B23001_140+B23001_142+B23001_147+B23001_149+B23001_154+B23001_156+B23001_161+B23001_166+B23001_171)/B23001_001) %>%
+	dplyr::select(City ,AgeEmpU29, AgeEmp3054, AgeEmpO55, AgeEmpU29Per_BG,AgeEmp3054Per_BG,AgeEmpO55Per_BG) %>%
+  left_join(Belfast.ME, ME.Emp.Age, by="City")
+
+Belfast.ME <- cbind(ME.Emp.Age)
+
+```
+* The number of workers, who are younger than 29 years old in `r Belfast.ME$City` is `r Belfast.ME$AgeEmpU29` which is `r (round(Belfast.ME$AgeEmpU29Per,4))*100`% of total number of workers.\
+
+* The number of workers, who are between 30 and 54 years old in `r Belfast.ME$City` is `r Belfast.ME$AgeEmp3054` which is `r (round(Belfast.ME$AgeEmp3054Per,4))*100`% of total number of workers.\
+
+* The number of workers, who are older than 55 years old in `r Belfast.ME$City` is `r Belfast.ME$AgeEmpO55` which is `r (round(Belfast.ME$AgeEmpO55Per,4))*100`% of total number of workers.\
+
+
+\
+
+
+### Employee Race
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################      Employee Race    ############################################################
+ME.Emp.Race <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("C23002A_007","C23002A_012","C23002A_020","C23002A_025","C23002A_005","C23002A_018", # White alone
+														              "C23002B_007","C23002B_012","C23002B_020","C23002B_025","C23002B_005","C23002B_018", # Black or African American alone
+														              "C23002D_007","C23002D_012","C23002D_020","C23002D_025","C23002D_005","C23002D_018", # Asian alone
+														              "C23002I_007","C23002I_012","C23002I_020","C23002I_025","C23002I_005","C23002I_018", # Hispanic or Latino alone
+														              "C23002G_007","C23002G_012","C23002G_020","C23002G_025","C23002G_005","C23002G_018",# Two or more races
+														              "B23001_001"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(WhiteEmp = C23002A_007+C23002A_012+C23002A_020+C23002A_025+C23002A_005+C23002A_018,
+	       BlackEmp = C23002B_007+C23002B_012+C23002B_020+C23002B_025+C23002B_005+C23002B_018,
+	       AsianEmp = C23002D_007+C23002D_012+C23002D_020+C23002D_025+C23002D_005+C23002D_018,
+	       HispanicEmp = C23002I_007+C23002I_012+C23002I_020+C23002I_025+C23002I_005+C23002I_018,
+	       TwoOrMoreEmp = C23002G_007+C23002G_012+C23002G_020+C23002G_025+C23002G_005+C23002G_018,
+         WhiteEmpPer = (C23002A_007+C23002A_012+C23002A_020+C23002A_025+C23002A_005+C23002A_018)/B23001_001,
+	       BlackEmpPer = (C23002B_007+C23002B_012+C23002B_020+C23002B_025+C23002B_005+C23002B_018)/B23001_001,
+	       AsianEmpPer = (C23002D_007+C23002D_012+C23002D_020+C23002D_025+C23002D_005+C23002D_018)/B23001_001,
+	       HispanicEmpPer = (C23002I_007+C23002I_012+C23002I_020+C23002I_025+C23002I_005+C23002I_018)/B23001_001,
+	       TwoOrMoreEmpPer = (C23002G_007+C23002G_012+C23002G_020+C23002G_025+C23002G_005+C23002G_018)/B23001_001) %>%
+	dplyr::select(City ,WhiteEmp, BlackEmp, AsianEmp, HispanicEmp, TwoOrMoreEmp,
+	       WhiteEmpPer, BlackEmpPer, AsianEmpPer, HispanicEmpPer, TwoOrMoreEmpPer) %>%
+  left_join(Belfast.ME, ME.Emp.Race, by="City")
+
+Belfast.ME <- cbind(ME.Emp.Race)
+```
+* The number of white workers in `r Belfast.ME$City` is `r Belfast.ME$WhiteEmp` which is `r (round(Belfast.ME$WhiteEmpPer,4))*100`% of total number of workers.\
+* The number of black workers in `r Belfast.ME$City` is `r Belfast.ME$BlackEmp` which is `r (round(Belfast.ME$BlackEmpPer,4))*100`% of total number of workers.\
+* The number of asian workers in `r Belfast.ME$City` is `r Belfast.ME$AsianEmp` which is `r (round(Belfast.ME$AsianEmpPer,4))*100`% of total number of workers.\
+* The number of hispanic or latino workers in `r Belfast.ME$City` is `r Belfast.ME$HispanicEmp` which is `r (round(Belfast.ME$HispanicEmpPer,4))*100`% of total number of workers.\
+* The number of workers, who have two or more races in `r Belfast.ME$City` is `r Belfast.ME$TwoOrMoreEmp` which is `r (round(Belfast.ME$TwoOrMoreEmpPer,4))*100`% of total number of workers.\
+\
+
+
+### Employee Education
+\
+```{r message=FALSE, warning=FALSE, ,echo=FALSE, results='hide', comment=""}
+#############################################   Employee Education    ########################################################
+
+ME.Educ.Emp <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B16010_003", # Less than high school graduate in labor force
+														              "B16010_016", # High school graduate in labor force 
+														              "B16010_029", # Some college or associate's degree in labor force
+														              "B16010_042",
+														              "B16010_001"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  	mutate(LessThanHSLabor = B16010_003,
+	       HSGradLabor = B16010_016,
+	       SomeCollLabor = B16010_029,
+	       BachOrHigherLabor = B16010_042,
+	       LessThanHSLaborPer = LessThanHSLabor/B16010_001,
+	       HSGradLaborPer = HSGradLabor/B16010_001,
+	       SomeCollLaborPer = SomeCollLabor/B16010_001,
+	       BachOrHigherLaborPer = BachOrHigherLabor/B16010_001) %>%
+	dplyr::select(City ,LessThanHSLabor, HSGradLabor, SomeCollLabor, BachOrHigherLabor,
+	       LessThanHSLaborPer, HSGradLaborPer, SomeCollLaborPer, BachOrHigherLaborPer) %>%
+  left_join(Belfast.ME, ME.Educ.Emp, by="City")
+
+Belfast.ME <- cbind(ME.Educ.Emp)
+
+```
+* The number of workers, who have less than high school degree in `r Belfast.ME$City` is `r Belfast.ME$LessThanHSLabor` which is `r (round(Belfast.ME$LessThanHSLaborPer,4))*100`% of total number of workers.\
+* The number of workers, who have high school degree in `r Belfast.ME$City` is `r Belfast.ME$HSGradLabor` which is `r (round(Belfast.ME$HSGradLaborPer,4))*100`% of total number of workers.\
+* The number of workers, who have some college or associates degree in `r Belfast.ME$City` is `r Belfast.ME$SomeCollLabor` which is `r (round(Belfast.ME$SomeCollLaborPer,4))*100`% of total number of workers.\
+* The number of workers, who have bachelors degree or higher in `r Belfast.ME$City` is `r Belfast.ME$BachOrHigherLabor` which is `r (round(Belfast.ME$BachOrHigherLaborPer,4))*100`% of total number of workers.\
+\
+
+### Employee Sex
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################    Employee Sex   #############################################################
+
+ME.Emp.Sex <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B23001_005", # Employed males
+														              "B23001_007", 
+														              "B23001_012",
+														              "B23001_014",
+														              "B23001_019",
+														              "B23001_021",
+														              "B23001_026",
+														              "B23001_028",
+														              "B23001_033",
+														              "B23001_035",
+														              "B23001_040",
+														              "B23001_042",
+														              "B23001_047",
+														              "B23001_049",
+														              "B23001_054",
+														              "B23001_056",
+														              "B23001_061",
+														              "B23001_063",
+														              "B23001_068",
+														              "B23001_070",
+														              "B23001_075",
+														              "B23001_080",
+														              "B23001_085",
+														              "B23001_091", # Employed females
+														              "B23001_093",
+														              "B23001_098",
+														              "B23001_100",
+														              "B23001_105",
+														              "B23001_107",
+														              "B23001_112",
+														              "B23001_114",
+														              "B23001_119",
+														              "B23001_121",
+														              "B23001_126",
+														              "B23001_128",
+														              "B23001_133",
+														              "B23001_135",
+														              "B23001_140",
+														              "B23001_142",
+														              "B23001_147",
+														              "B23001_149",
+														              "B23001_154",
+														              "B23001_156",
+														              "B23001_161",
+														              "B23001_166",
+														              "B23001_171",
+														              "B23001_001"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  	mutate(EmpMale = B23001_005 + B23001_007 + B23001_012 + B23001_014 + B23001_019 + B23001_021 + B23001_026 + B23001_028 + B23001_033 + B23001_035 + B23001_040 + B23001_042 + B23001_047 + B23001_049 + B23001_054 + B23001_056 + B23001_061 + B23001_063 + B23001_068+ B23001_070 + B23001_075 + B23001_080 + B23001_085,
+	  EmpFemale = B23001_091 + B23001_093 + B23001_098 + B23001_100 + B23001_105 + B23001_107 + B23001_112 + B23001_114 + B23001_119 + B23001_121 + B23001_126+ B23001_128 + B23001_133 + B23001_135 + B23001_140 + B23001_142 + B23001_147 + B23001_149 + B23001_154 + B23001_156 + B23001_161 + B23001_166 + B23001_171,
+	  TotalEmp = EmpMale + EmpFemale,
+	  EmpMalePer = EmpMale/	B23001_001,
+	  EmpFemalePer = EmpFemale/B23001_001) %>%
+	dplyr::select(City, EmpMale, EmpFemale, TotalEmp, EmpMalePer, EmpFemalePer) %>%
+  left_join(Belfast.ME, ME.Emp.Sex, by="City")
+
+Belfast.ME <- cbind(ME.Emp.Sex)
+
+```
+* The number of male workers in `r Belfast.ME$City` is `r Belfast.ME$EmpMale` which is `r (round(Belfast.ME$EmpMalePer,4))*100`% of total number of workers.\
+* The number of female workers in `r Belfast.ME$City` is `r Belfast.ME$EmpFemale` which is `r (round(Belfast.ME$EmpFemalePer,4))*100`% of total number of workers.\
+
+
+
+\
+
+## Healthcare
+\
+
+### Number of Hospitals
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+Belfast.ME$Hospitals <- 1
+```
+
+
+* `r Belfast.ME$City` has one hospital, which contains 25 beds.(https://www.ahd.com/)
+
+\
+
+
+###	Number of Nursing Homes 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Belfast.ME$NursingHomes <- 2
+```
+
+
+* `r Belfast.ME$City` has 2 nursing homes.(https://nursinghomedirectory.com/)
+
+
+## Municipal Finances
+\
+
+###	Revenue Streams
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+Belfast.ME$TotalRevenueGeneralFundFY19 <- 21994644
+Belfast.ME$RevenuePropertyTaxesFY19 <- 16370093
+Belfast.ME$RevenueExciseTaxesFY19 <- 1166289
+Belfast.ME$RevenueIntergovernmentalFY19 <- 1342545
+Belfast.ME$RevenueChargesForServicesFY19 <- 1910097
+Belfast.ME$RevenueInvestmentIncomeFY19 <- 34578
+Belfast.ME$RevenueInterestOnTaxesFY19 <- 76448
+Belfast.ME$RevenueSpecialPurposeAcctsFY19 <- 280275
+Belfast.ME$RevenueMiscellaneousFY19 <- 814319
+Belfast.ME$TotalRevenueCapitalProjectsFundFY19 <- 14333764
+Belfast.ME$TotalRevenueGovernmentalFundsFY19 <- 36328408
+```
+* The total general fund revenues for `r Belfast.ME$City` is $21,994,644 in Fiscal Year 2019, which includes property taxes with 16,370,093 Dollar, excise taxes with 1,166,289 Dollar, intergovernmental with 1,342,545 Dollar, charges for services with 1,910,097 Dollar, investment income with 34,578 Dollar, interest on taxes with 76,448 Dollar, special purpose accs with 280,275 Dollar, and miscellaneous with 814,319 Dollar. Also, the total revenues for capital projects fund is 14,333,764 Dollar and the total governmental funds is 36,328,408 dollar.(https://www.cityofbelfast.org/)
+
+\
+
+###	Major Expense Drivers
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Belfast.ME$TotalExpendituresGeneralFundFY19 <- 21628699
+Belfast.ME$ExpendituresGeneralGovernmentFY19 <- 2771098
+Belfast.ME$ExpendituresProtectionFY19 <- 2921784
+Belfast.ME$ExpendituresPublicWorksFY19 <- 2169983
+Belfast.ME$ExpendituresSocialServicesFY19 <- 275265
+Belfast.ME$ExpendituresParksRecreationFY19 <- 241406
+Belfast.ME$ExpendituresLibraryFY19 <- 449475
+Belfast.ME$ExpendituresCemeteriesFY19 <- 125762
+Belfast.ME$ExpendituresEducationFY19 <- 10302066
+Belfast.ME$ExpendituresCountyTaxFY19 <- 1541219
+Belfast.ME$ExpendituresDebtServiceFY19 <- 242688
+Belfast.ME$ExpendituresSpecialPurposeAcctsFY19 <- 258181
+Belfast.ME$ExpendituresUnclassifiedFY19 <- 329769
+Belfast.ME$ExpendituresCapitalProjectsFundFY19 <- 12287898
+Belfast.ME$ExpendituresTotalGovermentalFundsFY19 <- 33916597
+```
+
+* The total amount of general fund expenditures for `r Belfast.ME$City` is $21,628,699 in Fiscal Year 2019 and the major expense driver is related to education, which is 10,302,066 Dollar. Also, expenditures include general government with 2,771,098 Dollar, protection with 2,921,784 Dollar, public works with 2,169,983 Dollar, social services with 275,265 Dollar, parks and recreation with 241,406 Dollar, library with 449,475 Dollar, cemeteries with 125,762 Dollar, county tax with 1,541,219 Dollar, debt service with 242,688 Dollar, special purpose accts with 258,184 Dollar, unclassified with 329,769 Dollar. In addition, total expenditures for capital projects fund is 12,287,898 Dollar and the total governmental funds is 33,916,597 Dollar. (https://www.cityofbelfast.org/)
+
+\
+
+
+## Infrastructure
+\
+
+### Presence of Nearby Ports, Airports, Major Rail Facilities, or Intermodal Freight Facilities
+\
+
+* Belfast is located seven miles east of the port of Searsport, which is one of Maine's three major ports. Also, Belfast is located near Mack Point Marine Inter-Modal Cargo Terminal, which provides "facility possesses over 6,500 feet of on-site rail siding, interconnected with the Central Maine and Quebec Railway for double stack service to major United States and Canadian markets, more than 70 acres for development, and 90,000 square feet of storage". Moreover, "Belfast Municipal Airport "(Federal Aviation Administration airport code BST, International Civil Aviation Organization airport code KBST, Federal Aviation Administration site number 07837)", is located between the North and South phases of the Belfast Airport Business Park.(https://www.cityofbelfast.org/150/Transportation)
+
+
+\
+
+### Public Transport Reliability and Scope 
+\
+
+* Belfast is accessible by United States Route 1, Routes 3 and 1A. Interstate 95 is located 30-48 miles away, and can be reached through secondary routes. Belfast is located within a day’s drive of major markets such as Boston, Montreal, and New York City.(https://www.cityofbelfast.org/150/Transportation) The Belfast bus service is available for individuals for essential services such as work, food shopping and medical appointments by reservation only, in Covid-19 situation.(https://midcoastpublictransportation.org)
+
+
+\
+
+### Internet Access
+\
+
+* `r Belfast.ME$City` has 18 Internet service providers (ISPs). The common Internet options in Belfast are Viasat Internet (formerly Exede) and HughesNet. "Cable TV and Internet providers like Charter Spectrum and DSL Internet service providers like Consolidated Communications (Formerly Fairpoint Communications) make up the main Internet service systems with availability in Belfast". There is competition between broadband provides in this city, since the average address has 3-4 providers available in their area. However, about 11% of residents in Belfast has only one option. "There are 16 internet providers in Belfast with 9 of those offering residential service". Belfast is the 116th most connected city in Maine and the fastest zip code in Belfast for May 2020 is 04915.(https://broadbandnow.com/Maine/Belfast)
+
+
+
+\
+
+## Food Insecurity
+\
+
+
+### Number of Grocery Stores
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Belfast.ME$NumGrocery <- 10
+```
+* `r Belfast.ME$City` has 10 Grocery Stores.(https://www.city-data.com/city/Belfast-Maine.html)
+
+\
+
+###  SNAP Recipients 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##########################################################################################################################
+
+                                                #----------------------#
+                                                #    FOOD INSECURITY   #
+                                                #----------------------#
+
+####################################################  SNAP Recipients  ###################################################         
+
+ME.Snap <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B22001_002", # Household received Food Stamps/SNAP in the past 12 months
+														"B22001_001"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(SnapRec = B22001_002/B22001_001) %>%
+	dplyr::select(City ,SnapRec) %>%
+  left_join(Belfast.ME, ME.Snap, by="City")
+
+Belfast.ME <- cbind(ME.Snap)
+
+# paste("The percent of households, who received Food Stamps/SNAP in the past 12 months in",Belfast.ME$City,"state is",(round(Belfast.ME$SnapRec,4))*100,"%")
+
+#######################################################################################################################################
+
+```
+* The percent of households, who received Food Stamps/SNAP in the past 12 months in `r Belfast.ME$City` state is `r (round(Belfast.ME$SnapRec,4))*100`%.\
+
+\
+
+## Housing
+\
+
+### Proportion of Renters to Owners
+\
+
+### Home Values
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+                                                #----------------------#
+                                                #       HOUSING        #
+                                                #----------------------#
+
+######################   Proportion of Renters to Owners, Home Values   ########################################
+
+ME.Housing <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B25009_001", # Total Occupied Housing Units
+															 	"B25009_002", # Total Owner Occupied Housing Units
+															 	"B25009_010", # Total Renter Occupied Housing Units
+															 	"B25077_001", # Median Home Value
+															 	"B25082_001", # Aggregate value
+															 	"B25003_002"), # Owner occupied
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME,
+         MedianHValue = B25077_001,
+	       AvgHValue = B25082_001/B25003_002) %>%
+	mutate(RentersPer = B25009_010/B25009_001,
+				 HomeOwnPer = B25009_002/B25009_001,
+				 RentersToOwners = B25009_010/B25009_002) %>%
+	dplyr::select(City,RentersPer, HomeOwnPer, RentersToOwners, MedianHValue, AvgHValue) %>%
+  left_join(Belfast.ME, ME.Housing, by="City")
+
+Belfast.ME <- cbind(ME.Housing)
+
+```
+* The median house value in `r Belfast.ME$City` is 189700 Dollar.\
+
+* The average house value in `r Belfast.ME$City` is 383985600 Dollar.\
+
+* The proportion of renters to owners in `r Belfast.ME$City` is `r round(Belfast.ME$RentersToOwners,3)`.\
+
+* The percentage of renters in `r Belfast.ME$City` is `r (round(Belfast.ME$RentersPer,2))*100`%.\
+
+* The percentage of owners in `r Belfast.ME$City` is `r (round(Belfast.ME$HomeOwnPer,2))*100`%.\
+Followed is the map of Proportion of Renters to Owners, Median Home Values, and Average Home Values of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+
+## MAP
+
+housing <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state="ME",
+															county = "Waldo",
+															year = endyr,
+															output = "wide",
+															variables = c("B25009_001", # Total Occupied Housing Units
+															 	"B25009_002", # Total Owner Occupied Housing Units
+															 	"B25009_010", # Total Renter Occupied Housing Units
+															 	"B25077_001", # Median Home Value
+															 	"B25082_001", # Aggregate value
+															 	"B25003_002"), 
+															keep_geo_vars = T, geometry = TRUE) %>%
+  rename(MedianHValue_BG = B25077_001E,
+	       AvgHValue_BG = B25082_001E / B25003_002E) %>%
+	mutate(RentersPer_BG = B25009_010E/B25009_001E,
+				 HomeOwnPer_BG = B25009_002E/B25009_001E,
+				 RentersToOwners_BG = B25009_010E/B25009_002E) %>%
+	dplyr::select(GEOID,RentersPer_BG, HomeOwnPer_BG, RentersToOwners_BG, MedianHValue_BG, AvgHValue_BG)
+
+housing <- housing %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+tm_shape(housing) + tm_polygons("MedianHValue_BG" , palette="Blues", style = "quantile", title = "Median Home Value", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") 
+
+```
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+tm_shape(housing) + tm_polygons("AvgHValue_BG" , palette="Greens", style = "quantile", title = "Average Home Value", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray")
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+# tmap_mode('view')
+tm_shape(housing) + tm_polygons("RentersToOwners_BG" , palette="Reds", style = "quantile", title = "RentersToOwners") + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") 
+```
+
+
+\
+
+### Property Tax Rates
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Belfast.ME$PropertyTaxRate <- 22.90
+```
+* The amount of tax rate in `r Belfast.ME$City` is $22.90 per thousand Dollar in fiscal year 2019.(https://www.cityofbelfast.org/250/Tax-Rates)
+
+\
+
+
+\
+
+### Duration of Occupancy
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#########################################      Duration of Occupancy    ####################################################
+
+ME.Dur.Occ <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B25039_001", # Median Year Householder Moved Into Unit by Tenure
+															 	"B25039_002", # Median Year Householder Moved Into Unit by Tenure (Owner)
+															 	"B25039_003"),
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME,
+         MedYrMovedIn = B25039_001, 
+				 MedYrRentMovedIn = B25039_003,
+				 MedYrOwnMovedIn = B25039_002) %>%
+	dplyr::select(City, MedYrMovedIn, MedYrRentMovedIn, MedYrOwnMovedIn) %>%
+  left_join(Belfast.ME, ME.Dur.Occ, by="City")
+
+Belfast.ME <- cbind(ME.Dur.Occ)
+```
+* The median year that a homeowner moved into their current domicile in `r Belfast.ME$City` is `r Belfast.ME$MedYrOwnMovedIn`.\
+* The median year that a renter moved into their current domicile in `r Belfast.ME$City` is `r Belfast.ME$MedYrRentMovedIn`.\
+
+Followed is the map of Duration of Occupancy of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## MAP
+dur <- tidycensus::get_acs(geography = "block group",
+															survey="acs5",
+															state="ME",
+															county = "Waldo",
+															year = endyr,
+															output = "wide",
+															variables = c("B25039_001", # Median Year Householder Moved Into Unit by Tenure
+															 	"B25039_002", # Median Year Householder Moved Into Unit by Tenure (Owner)
+															 	"B25039_003"), 
+															keep_geo_vars = T, geometry = TRUE) %>%
+	rename(MedYrMovedIn_BG = B25039_001E, # I'm not sure if I should substract this value from 2018
+				 MedYrRentMovedIn_BG = B25039_003E,
+				 MedYrOwnMovedIn_BG = B25039_002E) %>% 
+  dplyr::select(GEOID,MedYrMovedIn_BG, MedYrRentMovedIn_BG,MedYrOwnMovedIn_BG)
+
+dur <- dur %>%
+  filter(GEOID %in% c("230270430001", "230270430002", "230270430003", "230270430004", "230270430005"))
+
+
+# tmap_mode('view')
+tm_shape(dur) + tm_polygons(c("MedYrMovedIn_BG","MedYrRentMovedIn_BG","MedYrOwnMovedIn_BG"), style="jenks", palette=list("Greens","seq","Blues"), border.col = "darkgray", title=c("MedYrMovedIn","MedYrRentMovedIn","MedYrOwnMovedIn")) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+
+
+```
+
+
+\
+
+### Cost Burdened Occupants
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+##############################################   Cost Burdened Occupants   ##################################
+ME.CostBurdened <- read_acs5year(year = endyr,
+                     states = "ME",
+                     table_contents = c("B25095_006", # Household income by selected monthly owner Costs as a percentage of household income
+														              # Less than $10,000 (30 to 34.9 percent)
+														              "B25095_007", # Less than $10,000 (35 to 39.9 percent)
+														              "B25095_008", # Less than $10,000 (40 to 49.9 percent)
+														              "B25095_009", # Less than $10,000 (50 percent or more)
+														              "B25095_015", # $10,000 to $19,999 (30 to 34.9 percent)
+														              "B25095_016", # $10,000 to $19,999 (35 to 39.9 percent)
+														              "B25095_017", # $10,000 to $19,999 (40 to 49.9 percent)
+														              "B25095_018", # $10,000 to $19,999 (50 percent or more)
+														              "B25095_024", # $20,000 to $34,999 (30 to 34.9 percent)
+														              "B25095_025", # $20,000 to $34,999 (35 to 39.9 percent)
+														              "B25095_026", # $20,000 to $34,999 (40 to 49.9 percent)
+														              "B25095_027", # $20,000 to $34,999 (50 percent or more)
+														              "B25095_033", # $35,000 to $49,999 (30 to 34.9 percent)
+														              "B25095_034", # $35,000 to $49,999 (35 to 39.9 percent)
+														              "B25095_035", # $35,000 to $49,999 (40 to 49.9 percent)
+														              "B25095_036", # $35,000 to $49,999 (50 percent or more)
+														              "B25095_042", # $50,000 to $74,999 (30 to 34.9 percent)
+														              "B25095_043", # $50,000 to $74,999 (35 to 39.9 percent)
+														              "B25095_044", # $50,000 to $74,999 (40 to 49.9 percent)
+														              "B25095_045", # $50,000 to $74,999 (50 percent or more)
+														              "B25095_051", # $75,000 to $99,999 (30 to 34.9 percent)
+														              "B25095_052", # $75,000 to $99,999 (35 to 39.9 percent)
+														              "B25095_053", # $75,000 to $99,999 (40 to 49.9 percent)
+														              "B25095_054", # $75,000 to $99,999 (50 percent or more)
+														              "B25095_060", # $100,000 to $149,999 (30 to 34.9 percent)
+														              "B25095_061", # $100,000 to $149,999 (35 to 39.9 percent)
+														              "B25095_062", # $100,000 to $149,999 (40 to 49.9 percent)
+														              "B25095_063", # $100,000 to $149,999 (50 percent or more)
+														              "B25095_069", # $150,000 or more (30 to 34.9 percent)
+														              "B25095_070", # $150,000 or more (35 to 39.9 percent)
+														              "B25095_071", # $150,000 or more (40 to 49.9 percent)
+														              "B25095_072", # $150,000 or more (50 percent or more)
+														              "B25095_001"), # Total
+                     areas = "Belfast city, ME",
+                     summary_level = "place") %>%
+  rename(City = NAME) %>%
+  mutate(CostBurdened = B25095_006+B25095_007+B25095_008+B25095_009+B25095_015+B25095_016+B25095_017+B25095_018+
+	       B25095_024+B25095_025+B25095_026+B25095_027+B25095_033+B25095_034+B25095_035+B25095_036+B25095_042+B25095_043+B25095_044+B25095_045+B25095_051+B25095_052+B25095_053+B25095_054+B25095_060+B25095_061+B25095_062+B25095_063+B25095_069+B25095_070+B25095_071+B25095_072,
+         CostBurdenedPer = CostBurdened/B25095_001) %>%
+	dplyr::select(City ,CostBurdened, CostBurdenedPer) %>%
+  left_join(Belfast.ME, ME.CostBurdened, by="City")
+
+Belfast.ME <- cbind(ME.CostBurdened)
+
+```
+* The number of households, who spend 30 percent or more on housing costs in `r Belfast.ME$City` is `r Belfast.ME$CostBurdened` which is `r (round(Belfast.ME$CostBurdenedPer,3))*100`% of total number of households, who spend money on housing costs.\
+
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Belfast.ME$Homelessness <- NA
+```
+
+
+\
+
+### Local/State Policies + Assistance on Rent Deferment
+\
+
+* There is a program, which is the General Assistance program in Maine and it is administered by each municipality in order to provide help to eligible people who do not have enough money for basic needs. "General Assistance provides essential items such as: Food, Heating fuel, and Rent / mortgage. In order to receive assistance, enrolled individuals must follow program rules and meet the eligibility conditions". This General Assistance Administrator will only be able to help Belfast residents.(https://www.cityofbelfast.org/155/General-Assistance)
+
+```{r}
+Belfast.ME
+```
+
+

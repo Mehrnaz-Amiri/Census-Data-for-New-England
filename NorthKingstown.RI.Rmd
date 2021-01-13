@@ -1,0 +1,2001 @@
+---
+title: "Municipal Indicators For North Kingstown, RI"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  html_notebook:
+    toc: yes
+    toc_depth: 3
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '3'
+---
+
+In this report, 39 demographic, educational institutions, employment, healthcare, municipal finance, infrastructure, food insecurity and housing variables are presented using federally-published data sources for the city of North Kingstown, Rhode Island. To better demonstrate their ties to geography of the city, the variables have been mapped on the block group level. \
+
+
+## Demographic
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+                                 #######################################################
+                                 #       Municipal Indicators For Municipalities        #               
+                                 #######################################################
+library(stringr)
+library(tidycensus)
+library(tidyverse)
+library(tigris)
+library(totalcensus)
+
+options(tigris_class = "sf",tigris_use_cache = T)
+# Get API key 
+# census_api_key("045944708d514a404443c9f2d227ac8bf6a8f8bd", install = TRUE, overwrite=TRUE)
+# Specify the end year 
+# This is for 5-year estimates
+endyr <- 2018
+# List of ACS variables
+Var_List <- tidycensus::load_variables(year = endyr, dataset = "acs5", cache = T)
+#View(Var_List)
+```
+
+
+\
+
+
+### Population  Size
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+                                             #--------------------#
+                                             #    DEMOGRAPHIC     #
+                                             #--------------------#
+
+##############################################    Population  Size    ###########################################################
+library(tidyverse)
+# search_cbsa()
+# search_fips()
+# set_path_to_census("C:\\Users\\ux305\\Desktop\\census")
+j <- "RI"
+area <- "North Kingstown town, RI"
+c <- "Washington"
+ch.pop <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = "B01003_001",
+                     areas = area,
+                     summary_level = "tract") 
+
+ch.pop <- ch.pop[ch.pop$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  mutate(population = sum(population)) %>%
+  rename(TotalPop = population) %>%
+  rename(City = area) %>% 
+  dplyr::select(City, TotalPop)
+
+ch.pop <- ch.pop[1,]
+Chelsea.MA <- cbind(ch.pop)
+
+ch.MA.Pop <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = "B01003_001",
+                     areas = area,
+                     summary_level = "block group")
+
+ch.Pop.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county=c,
+													 year = endyr,
+													 output = "wide",
+													 variables = "B01003_001", # Total Population
+													 keep_geo_vars = T, geometry = TRUE)
+
+Chelsea <- merge(ch.Pop.get, ch.MA.Pop, by.x = 'NAME.y', by.y='NAME')
+```
+
+
+The total population of `r Chelsea.MA$City` is `r Chelsea.MA$TotalPop`. Followed is the population size map of the city.\
+\
+
+```{r , echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+## MAP
+library(tmap)
+tm_shape(Chelsea) + tm_polygons('B01003_001E' , palette="seq", style = "quantile", title = "Total Population")  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray")
+```
+\
+
+
+### Population Age
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##############################################    Population  Age   #############################################################
+MA.Age.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B01001_003","B01001_004","B01001_005","B01001_006",
+													 							"B01001_027","B01001_028","B01001_029","B01001_030", # Under 5 years; Between 5 to 17
+													 							"B01001_007","B01001_008","B01001_009",
+													 							"B01001_010","B01001_011","B01001_012",
+													 							"B01001_036","B01001_035","B01001_034",
+													 							"B01001_033","B01001_032","B01001_031", # 18 to 24 years; 25 to 34 years
+													 							"B01001_013","B01001_014","B01001_015",
+													 							"B01001_016","B01001_017","B01001_018","B01001_019",
+													 							"B01001_043","B01001_042","B01001_041","B01001_040",
+													 							"B01001_039","B01001_038","B01001_037", # 35 to 44 years; 45 to 54 years; 55 to 59 years; 60 to 64 years
+													 							"B01001_020","B01001_021","B01001_022",
+													 							"B01001_023","B01001_024","B01001_025",
+													 							"B01001_044","B01001_045","B01001_046",
+													 							"B01001_047","B01001_048","B01001_049","B01003_001"),
+                     areas = area,
+                     summary_level = "tract") 
+
+MA.Age.ch <- MA.Age.ch[MA.Age.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>% 
+  rename(City = area) %>%
+  mutate(AgeU18 = B01001_003+B01001_004+B01001_005+B01001_006+B01001_027+B01001_028+B01001_029+B01001_030, 
+				 Age1834 = B01001_007+B01001_008+B01001_009+B01001_010+B01001_011+B01001_012+B01001_036+B01001_035+B01001_034+B01001_033+B01001_032+B01001_031,
+				 Age3564 = B01001_013+B01001_014+B01001_015+B01001_016+B01001_017+B01001_018+B01001_019+B01001_043+B01001_042+B01001_041+B01001_040+B01001_039+B01001_038+B01001_037,
+				 AgeO65 = B01001_020+B01001_021+B01001_022+B01001_023+B01001_024+B01001_025+B01001_044+B01001_045+B01001_046+B01001_047+B01001_048+B01001_049) %>%
+  mutate(AgeU18 = sum(AgeU18),
+         Age1834 = sum(Age1834),
+         Age3564 = sum(Age3564),
+         AgeO65 = sum(AgeO65)) %>%
+  	mutate(AgeU18Per = AgeU18[1]/26207,
+				 Age1834Per = Age1834[1]/26207,
+				 Age3564Per = Age3564[1]/26207,
+				 AgeO65Per = AgeO65[1]/26207) %>%
+dplyr::select(AgeU18,Age1834,Age3564,AgeO65,AgeU18Per,Age1834Per,Age3564Per,AgeO65Per, City) %>%
+  left_join(Chelsea.MA, MA.Age.ch, by="City")
+MA.Age.ch <- MA.Age.ch[1,]
+Chelsea.MA <- cbind(MA.Age.ch)
+```
+* The number of people, who are younger than 18 Years old is `r Chelsea.MA$AgeU18` in `r Chelsea.MA$City` 
+, which is `r (round(Chelsea.MA$AgeU18Per,4))*100`% of total population in `r Chelsea.MA$City`. \
+* The number of people, who are between 18 and 34 years old is `r Chelsea.MA$Age1834` in `r Chelsea.MA$City`, which is `r (round(Chelsea.MA$Age1834Per,4))*100`% of total population in `r Chelsea.MA$City`.\
+* The number of people, who are between 35 and 64 years old is `r Chelsea.MA$Age3564` in `r Chelsea.MA$City`, which is `r (round(Chelsea.MA$Age3564Per,4))*100`% of total population in `r Chelsea.MA$City`.\
+* The number of people, who are older than 65 years old is `r Chelsea.MA$AgeO65` in `r Chelsea.MA$City`, which is `r (round(Chelsea.MA$AgeO65Per,4))*100`% of total population in `r Chelsea.MA$City`.\
+
+Followed is the population age map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## Map
+
+ch.MA.Age <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B01001_003","B01001_004","B01001_005","B01001_006",
+													 							"B01001_027","B01001_028","B01001_029","B01001_030", # Under 5 years; Between 5 to 17
+													 							"B01001_007","B01001_008","B01001_009",
+													 							"B01001_010","B01001_011","B01001_012",
+													 							"B01001_036","B01001_035","B01001_034",
+													 							"B01001_033","B01001_032","B01001_031", # 18 to 24 years; 25 to 34 years
+													 							"B01001_013","B01001_014","B01001_015",
+													 							"B01001_016","B01001_017","B01001_018","B01001_019",
+													 							"B01001_043","B01001_042","B01001_041","B01001_040",
+													 							"B01001_039","B01001_038","B01001_037", # 35 to 44 years; 45 to 54 years; 55 to 59 years; 60 to 64 years
+													 							"B01001_020","B01001_021","B01001_022",
+													 							"B01001_023","B01001_024","B01001_025",
+													 							"B01001_044","B01001_045","B01001_046",
+													 							"B01001_047","B01001_048","B01001_049","B01003_001"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.age.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_003","B01001_004","B01001_005","B01001_006",
+													 							"B01001_027","B01001_028","B01001_029","B01001_030", # Under 5 years; Between 5 to 17
+													 							"B01001_007","B01001_008","B01001_009",
+													 							"B01001_010","B01001_011","B01001_012",
+													 							"B01001_036","B01001_035","B01001_034",
+													 							"B01001_033","B01001_032","B01001_031", # 18 to 24 years; 25 to 34 years
+													 							"B01001_013","B01001_014","B01001_015",
+													 							"B01001_016","B01001_017","B01001_018","B01001_019",
+													 							"B01001_043","B01001_042","B01001_041","B01001_040",
+													 							"B01001_039","B01001_038","B01001_037", # 35 to 44 years; 45 to 54 years; 55 to 59 years; 60 to 64 years
+													 							"B01001_020","B01001_021","B01001_022",
+													 							"B01001_023","B01001_024","B01001_025",
+													 							"B01001_044","B01001_045","B01001_046",
+													 							"B01001_047","B01001_048","B01001_049","B01003_001"), # Total Population
+													 keep_geo_vars = T, geometry = TRUE) %>%
+mutate(AgeU18 = B01001_003E+B01001_004E+B01001_005E+B01001_006E+B01001_027E+B01001_028E+B01001_029E+B01001_030E, 
+				 Age1834 = B01001_007E+B01001_008E+B01001_009E+B01001_010E+B01001_011E+B01001_012E+B01001_036E+B01001_035E+B01001_034E+B01001_033E+B01001_032E+B01001_031E,
+				 Age3564 = B01001_013E+B01001_014E+B01001_015E+B01001_016E+B01001_017E+B01001_018E+B01001_019E+B01001_043E+B01001_042E+B01001_041E+B01001_040E+B01001_039E+B01001_038E+B01001_037E,
+				 AgeO65 = B01001_020E+B01001_021E+B01001_022E+B01001_023E+B01001_024E+B01001_025E+B01001_044E+B01001_045E+B01001_046E+B01001_047E+B01001_048E+B01001_049E)  %>%
+  rename(AgeU18_BG = AgeU18,
+				 Age1834_BG = Age1834,
+				 Age3564_BG = Age3564,
+				 AgeO65_BG = AgeO65) %>%
+	mutate(AgeU18Per_BG = ((AgeU18_BG/B01003_001E)*100),
+				 Age1834Per_BG = ((Age1834_BG/B01003_001E)*100),
+				 Age3564Per_BG = ((Age3564_BG/B01003_001E)*100),
+				 AgeO65Per_BG = ((AgeO65_BG/B01003_001E)*100))  
+Chelsea.age <- merge(ch.age.get, ch.MA.Age, by.x = 'NAME.y', by.y='NAME')
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+ 
+
+tm_shape(Chelsea.age) + tm_polygons(c('AgeU18Per_BG','Age1834Per_BG',"Age3564Per_BG","AgeO65Per_BG") , palette=list("Oranges", "Greens", "Blues", "Purples") ,style = "quantile", title = c('AgeU18','Age1834',"Age3564","AgeO65"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent))  + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) +tm_layout(legend.position = c("left","top"))
+
+```
+\
+
+### Median Household Income
+\
+
+```{r  echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#################################################    Median Household Income    ##############################################################
+
+MA.MHI.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = "B19013_001",
+                     areas = area,
+                     summary_level = "tract") 
+MA.MHI.ch <- MA.MHI.ch[MA.MHI.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+				 mutate(MedHouseIncome = median(B19013_001)) %>% 
+				          rename(City = area) %>% 
+	dplyr::select(City, MedHouseIncome) %>%
+  left_join(Chelsea.MA, MA.MHI.ch, by="City")
+MA.MHI.ch <- MA.MHI.ch[1,]
+Chelsea.MA <- cbind(MA.MHI.ch)
+```
+* The median household income in the past 12 months is 99318 Dollar in `r Chelsea.MA$City`.\
+
+Followed is the Median Household Income map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## MAP
+ch.MA.income <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = "B19013_001",
+                     areas = area,
+                     summary_level = "block group")
+
+ch.income.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = "B19013_001", 
+													 keep_geo_vars = T, geometry = TRUE) 
+
+chelsea.income <- merge(ch.income.get, ch.MA.income, by.x = 'NAME.y', by.y='NAME')
+
+make_dollar <- function(x, digits = 0) {
+  paste0("$", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+library(tmap)
+tm_shape(chelsea.income) + tm_polygons('B19013_001E' , palette="Blues", style="quantile", title = "Median Household Income", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar))  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) 
+```
+
+\
+
+### Racial Breakdown 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##############################################      Racial Breakdown     ###################################################################
+MA.Race.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B03002_003", # white alone
+																					"B03002_004", # black or African American alone
+																					"B03002_006", # Asian alone
+																					"B03002_012", # Hispanic or Latino alone
+																					"B03002_009"),
+                     areas = area,
+                     summary_level = "tract") 
+MA.Race.ch <- MA.Race.ch[MA.Race.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+				 mutate(White = sum(B03002_003),
+				 Black = sum(B03002_004),
+				 Asian = sum(B03002_006),
+				 Hispanic = sum(B03002_012),
+				 TwoOrMore = sum(B03002_009)) %>%
+				 rename(City = area) %>% 
+  mutate(WhitePer = (White/sum(population)),
+         BlackPer = (Black/sum(population)),
+         AsianPer = (Asian/sum(population)),
+         HispanicPer = (Hispanic/sum(population)),
+         TwoOrMorePer = (TwoOrMore/sum(population))) %>%
+	dplyr::select(City, White, Black, Asian, Hispanic, TwoOrMore,
+	       WhitePer, BlackPer, AsianPer, HispanicPer, TwoOrMorePer) %>%
+  left_join(Chelsea.MA, MA.Race.ch, by="City")
+MA.Race.ch <- MA.Race.ch[1,]
+Chelsea.MA <- cbind(MA.Race.ch)
+```
+* The number of people who are white in `r Chelsea.MA$City` is `r Chelsea.MA$White` which is `r (round(Chelsea.MA$WhitePer,4))*100`% of total population in `r Chelsea.MA$City`.\
+* The number of people who are black in `r Chelsea.MA$City` is `r Chelsea.MA$Black` which is `r (round(Chelsea.MA$BlackPer,4))*100`% of total population in `r Chelsea.MA$City`.\
+* The number of people who are asian in `r Chelsea.MA$City` is `r Chelsea.MA$Asian` which is `r (round(Chelsea.MA$AsianPer,4))*100`% of total population in `r Chelsea.MA$City`.\
+* The number of people who are hispanic in `r Chelsea.MA$City` is `r Chelsea.MA$Hispanic` which is `r (round(Chelsea.MA$HispanicPer,4))*100`% of total population in `r Chelsea.MA$City`.\
+* The number of people who are have two or more races in `r Chelsea.MA$City` is `r Chelsea.MA$TwoOrMore` which is `r (round(Chelsea.MA$TwoOrMorePer,4))*100`% of total population in `r Chelsea.MA$City`. \
+
+Followed is the Racial Breakdown map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## Map
+ch.MA.race <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B03002_003", # white alone
+																					"B03002_004", # black or African American alone
+																					"B03002_006", # Asian alone
+																					"B03002_012", # Hispanic or Latino alone
+																					"B03002_009",
+																					"B01003_001"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.race.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B03002_003", # white alone
+																					"B03002_004", # black or African American alone
+																					"B03002_006", # Asian alone
+																					"B03002_012", # Hispanic or Latino alone
+																					"B03002_009",
+																					"B01003_001"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+rename(White_BG = B03002_003E,
+				 Black_BG = B03002_004E,
+				 Asian_BG = B03002_006E,
+				 Hispanic_BG = B03002_012E,
+				 TwoOrMore_BG = B03002_009E) %>%
+  mutate(WhitePer_BG = (White_BG/B01003_001E)*100,
+         BlackPer_BG = (Black_BG/B01003_001E)*100,
+         AsianPer_BG = (Asian_BG/B01003_001E)*100,
+         HispanicPer_BG = (Hispanic_BG/B01003_001E)*100,
+         TwoOrMorePer_BG = (TwoOrMore_BG/B01003_001E)*100) 
+
+chelsea.race <- merge(ch.race.get, ch.MA.race, by.x = 'NAME.y', by.y='NAME')
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+ 
+library(tmap)
+tm_shape(chelsea.race) + tm_polygons(c("WhitePer_BG", "BlackPer_BG", "AsianPer_BG", "HispanicPer_BG", "TwoOrMorePer_BG") , palette=list("Oranges", "Greens", "Blues", "Purples", "Reds"), style = "quantile", title = c("White", "Black", "Asian","Hispanic", "TwoOrMore"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent))  + tm_view(alpha = 0.85,view,basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray") + tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+```
+
+\
+
+
+### Gender Breakdown
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#####################################################    Gender Breakdown    #############################################################
+
+MA.Sex.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B01001_026",
+													               "B01001_002"),
+                     areas = area,
+                     summary_level = "tract")
+MA.Sex.ch <- MA.Sex.ch[MA.Sex.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  mutate(SexRatio = sum(B01001_026)/sum(B01001_002),
+         Female = sum(B01001_026),
+				 Male = sum(B01001_002)) %>%
+  rename(City = area) %>%
+  mutate(FemalePer = (Female/sum(population)),
+				 MalePer = (Male/sum(population))) %>% 
+	dplyr::select(City, SexRatio, Female, Male, FemalePer, MalePer) %>%
+  left_join(Chelsea.MA, MA.Sex.ch, by="City")
+MA.Sex.ch <- MA.Sex.ch[1,]
+Chelsea.MA <- cbind(MA.Sex.ch)
+
+```
+* The number of females in `r Chelsea.MA$City` is `r Chelsea.MA$Female` which is `r 100*(round(Chelsea.MA$FemalePer,2))`% of total population in `r Chelsea.MA$City`.\
+* The number of males in `r Chelsea.MA$City` is `r Chelsea.MA$Male` which is `r 100*(round(Chelsea.MA$MalePer,2))`% of total population in `r Chelsea.MA$City`.\
+* The ratio of number of females to males in `r Chelsea.MA$City` is `r round(Chelsea.MA$SexRatio,2)`.\
+
+Followed is the Gender Breakdown map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ch.MA.sex <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B01001_026",
+													               "B01001_002",
+													               "B01003_001"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.sex.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B01001_026",
+													               "B01001_002",
+													               "B01003_001"), 
+													 keep_geo_vars = T, geometry = TRUE)  %>%
+mutate(SexRatio = B01001_026E/B01001_002E) %>%
+  rename(Female = B01001_026E,
+				 Male = B01001_002E) %>%
+  mutate(FemalePer = (Female/B01003_001E)*100,
+         MalePer = (Male/B01003_001E)*100)
+
+chelsea.sex <- merge(ch.sex.get, ch.MA.sex, by.x = 'NAME.y', by.y='NAME')
+
+library(tmap)
+tm_shape(chelsea.sex) + tm_polygons(c('Female', 'Male'), palette=list("Purples", "Reds"), title = c("Female","Male"))  + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray")+ tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+tm_shape(chelsea.sex) + tm_polygons(c('FemalePer', 'MalePer'), palette=list("Blues", "Oranges"), title = c("Female Percentage","Male Percentage"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent)) + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") +tm_borders(col = "darkgray")+ tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+
+```
+
+
+
+
+\
+
+### Average Household Size
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#################################################    Average Household Size    ############################################################
+
+MA.AveHH.Size.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B11002_001", 
+															         "B19001_001"),
+                     areas = area,
+                     summary_level = "tract")
+MA.AveHH.Size.ch <- MA.AveHH.Size.ch[MA.AveHH.Size.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>% 
+  mutate(AveHouseH = sum(B11002_001)/sum(B19001_001)) %>%
+	dplyr::select(City, AveHouseH) %>%
+  left_join(Chelsea.MA, MA.AveHH.Size.ch, by="City")
+MA.AveHH.Size.ch <- MA.AveHH.Size.ch[1,]
+
+Chelsea.MA <- cbind(MA.AveHH.Size.ch)
+```
+* The average household size is `r round(Chelsea.MA$AveHouseH, 2)` in `r Chelsea.MA$City`.\
+
+Followed is the Average Household Size map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+
+ch.MA.HH.Size <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B11002_001", # Household type by relatives and nonrelatives for population in households
+															              "B19001_001"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.HH.Size.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B11002_001", # Household type by relatives and nonrelatives for population in households
+															              "B19001_001"), 
+													 keep_geo_vars = T, geometry = TRUE)  %>%
+  mutate(AveHouseH = B11002_001E/B19001_001E) 
+
+chelsea.HH.Size <- merge(ch.HH.Size.get, ch.MA.HH.Size, by.x = 'NAME.y', by.y='NAME')
+
+
+tm_shape(chelsea.HH.Size) + tm_polygons("AveHouseH", style = "quantile", palette="Purples", border.col = "darkgray", title="Ave Household Size") + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite") + tmap_options(show.messages = FALSE)
+
+```
+
+\
+
+### Educational Attainment
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################   Educational Attainment    ##################################################################
+MA.Educ.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B15002_001", # variables for Sex by Edu Attainment for Population 25 yrs or Over
+																					"B15002_003","B15002_004","B15002_005",
+																					"B15002_006","B15002_007","B15002_008","B15002_009","B15002_010",
+																					"B15002_020","B15002_021","B15002_022","B15002_023","B15002_024",
+																					"B15002_025","B15002_026","B15002_027",
+																					"B15002_011","B15002_028",
+																					"B15002_012","B15002_013","B15002_014",
+																					"B15002_029","B15002_030","B15002_031",
+																					"B15002_015","B15002_032",
+																					"B15002_016","B15002_033",
+																					"B15002_017","B15002_034",
+																					"B15002_018","B15002_035"),
+                     areas = area,
+                     summary_level = "tract") 
+MA.Educ.ch <- MA.Educ.ch[MA.Educ.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>% 
+  mutate(LessThanHS = (B15002_003+B15002_004+B15002_005+B15002_006+B15002_007+B15002_008+B15002_009+B15002_010+B15002_020+B15002_021+B15002_022+B15002_023+B15002_024+B15002_025+B15002_026+B15002_027),
+				 HSGrad = (B15002_011 + B15002_028),
+				 SomeColl = (B15002_012+ B15002_013 + B15002_014 + B15002_029 + B15002_030 + B15002_031),
+				 Bach = (B15002_015 + B15002_032),
+				 Master = (B15002_016 + B15002_033),
+				 Prof = (B15002_017 + B15002_034),
+				 Doc = (B15002_018 + B15002_035),
+				 LessThanHS = sum(LessThanHS),
+				 HSGrad = sum(HSGrad),
+				 SomeColl = sum(SomeColl),
+				 Bach = sum(Bach),
+				 Master = sum(Master),
+				 Prof = sum(Prof),
+				 Doc = sum(Doc),
+				 LessThanHSPer = (LessThanHS/sum(population)),
+         HSGradPer = (HSGrad/sum(population)),
+         SomeCollPer = (SomeColl/sum(population)),
+         BachPer = (Bach/sum(population)),
+         MasterPer = (Master/sum(population)),
+         ProfPer = (Prof/sum(population)),            
+         DocPer = (Doc/sum(population))) %>%
+	dplyr::select(City, LessThanHS, HSGrad, SomeColl, Bach, Master, Prof, Doc,
+	       LessThanHSPer, HSGradPer, SomeCollPer, BachPer, MasterPer, ProfPer, DocPer) %>% 
+  left_join(Chelsea.MA, MA.Educ.ch, by="City") 
+MA.Educ.ch <- MA.Educ.ch[1,]
+Chelsea.MA <- cbind(MA.Educ.ch)
+```
+* The number of people, who have less than high school degree is `r  Chelsea.MA$LessThanHS` in `r Chelsea.MA$City` which is `r (round(Chelsea.MA$LessThanHSPer,4))*100`% of the population who are 25 years old or older in `r Chelsea.MA$City`.\
+* The number of people, who have high school degree is `r  Chelsea.MA$HSGrad` in `r Chelsea.MA$City` which is `r (round(Chelsea.MA$HSGradPer,4))*100`% of the population who are 25 years old or older in `r Chelsea.MA$City`.\
+* The number of people, who have some college degree is `r  Chelsea.MA$SomeColl` in `r Chelsea.MA$City` which is `r (round(Chelsea.MA$SomeCollPer,4))*100`% of the population who are 25 years old or older in `r Chelsea.MA$City`.\
+* The number of people, who have bachelor degree is `r Chelsea.MA$Bach` in `r Chelsea.MA$City` which is `r (round(Chelsea.MA$BachPer,4))*100`% of the population who are 25 years old or older in `r Chelsea.MA$City`.\
+* The number of people, who have master's degree is `r Chelsea.MA$Master` in `r Chelsea.MA$City` which is `r (round(Chelsea.MA$MasterPer,4))*100`% of the population who are 25 years old or older in `r Chelsea.MA$City`.\
+* The number of people, who have professional school degree is `r  Chelsea.MA$Prof` in `r Chelsea.MA$City` which is `r (round(Chelsea.MA$ProfPer,4))*100`% of the population who are 25 years old or older in `r Chelsea.MA$City`.\
+* The number of people, who have doctorate degree is `r  Chelsea.MA$Doc` in `r Chelsea.MA$City` which is `r (round(Chelsea.MA$DocPer,4))*100`% of the population who are 25 years old or older in `r Chelsea.MA$City`.\
+
+Followed is the Educational Attainment map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ch.MA.Educ <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B15002_001", # variables for Sex by Edu Attainment for Population 25 yrs or Over
+																					"B15002_003","B15002_004","B15002_005",
+																					"B15002_006","B15002_007","B15002_008","B15002_009","B15002_010",
+																					"B15002_020","B15002_021","B15002_022","B15002_023","B15002_024",
+																					"B15002_025","B15002_026","B15002_027",
+																					"B15002_011","B15002_028",
+																					"B15002_012","B15002_013","B15002_014",
+																					"B15002_029","B15002_030","B15002_031",
+																					"B15002_015","B15002_032",
+																					"B15002_016","B15002_033",
+																					"B15002_017","B15002_034",
+																					"B15002_018","B15002_035"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.Educ.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B15002_001", # variables for Sex by Edu Attainment for Population 25 yrs or Over
+																					"B15002_003","B15002_004","B15002_005",
+																					"B15002_006","B15002_007","B15002_008","B15002_009","B15002_010",
+																					"B15002_020","B15002_021","B15002_022","B15002_023","B15002_024",
+																					"B15002_025","B15002_026","B15002_027",
+																					"B15002_011","B15002_028",
+																					"B15002_012","B15002_013","B15002_014",
+																					"B15002_029","B15002_030","B15002_031",
+																					"B15002_015","B15002_032",
+																					"B15002_016","B15002_033",
+																					"B15002_017","B15002_034",
+																					"B15002_018","B15002_035"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+  mutate(LessThanHS_BG = (B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E),
+				 HSGrad_BG = (B15002_011E + B15002_028E),
+				 SomeColl_BG = (B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E),
+				 Bach_BG = (B15002_015E + B15002_032E),
+				 Master_BG = (B15002_016E + B15002_033E),
+				 Prof_BG = (B15002_017E + B15002_034E),
+				 Doc_BG = (B15002_018E + B15002_035E),
+		    LessThanHSPer_BG = ((B15002_003E+B15002_004E+B15002_005E+B15002_006E+B15002_007E+B15002_008E+B15002_009E+B15002_010E+B15002_020E+B15002_021E+B15002_022E+B15002_023E+B15002_024E+B15002_025E+B15002_026E+B15002_027E)/B15002_001E)*100,
+				 HSGradPer_BG = ((B15002_011E + B15002_028E)/B15002_001E)*100,
+				 SomeCollPer_BG = ((B15002_012E + B15002_013E + B15002_014E + B15002_029E + B15002_030E + B15002_031E)/B15002_001E)*100,
+				 BachPer_BG = ((B15002_015E + B15002_032E)/B15002_001E)*100,
+				 MasterPer_BG = ((B15002_016E + B15002_033E)/B15002_001E)*100,
+				 ProfPer_BG = ((B15002_017E + B15002_034E)/B15002_001E)*100,
+				 DocPer_BG = ((B15002_018E + B15002_035E)/B15002_001E)*100)
+
+chelsea.Educ <- merge(ch.Educ.get, ch.MA.Educ, by.x = 'NAME.y', by.y='NAME')
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+tm_shape(chelsea.Educ) +
+    tm_fill(c('LessThanHSPer_BG', 'HSGradPer_BG', 'SomeCollPer_BG', 'BachPer_BG', 'MasterPer_BG', 'ProfPer_BG', 'DocPer_BG'),
+        style="quantile", 
+        palette=list("Oranges", "Greens", "Blues", "Purples", "Reds","Dark2", "seq"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent), title=c('LessThanHS', 'HSGrad', 'SomeColl', 'Bach', 'Master', 'Prof', 'Doc')) + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") +tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+### Single Parent Households
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+##########################################      Single Parent Households     ##################################################################
+MA.Single.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B11001_006", # Female Hoseholder, No Husband Present
+																						"B11001_005", # Male Householder, No Wife Present
+																						"B11001_001"),
+                     areas = area,
+                     summary_level = "tract") 
+
+MA.Single.ch <- MA.Single.ch[MA.Single.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>% 
+  mutate(FemHeadPer = sum(B11001_006)/sum(B11001_001),
+	       MaleHeadPer = sum(B11001_005)/sum(B11001_001)) %>%
+	dplyr::select(City, FemHeadPer, MaleHeadPer) %>%
+  left_join(Chelsea.MA, MA.Single.ch, by="City")
+MA.Single.ch <- MA.Single.ch[1,]
+
+Chelsea.MA <- cbind(MA.Single.ch)
+
+```
+* The percentage of single-female-headed is `r (round(Chelsea.MA$FemHeadPer,4))*100`% of total number of family households in `r Chelsea.MA$City`.\
+* The percentage of single-male-headed is `r (round(Chelsea.MA$MaleHeadPer,4))*100`% of total number of family households in `r Chelsea.MA$City`.\
+
+Followed is the Single Parent Households map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ch.MA.single <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B11001_006", # Female Hoseholder, No Husband Present
+																						"B11001_005", # Male Householder, No Wife Present
+																						"B11001_001"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.single.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B11001_006", # Female Hoseholder, No Husband Present
+																						"B11001_005", # Male Householder, No Wife Present
+																						"B11001_001"), 
+													 keep_geo_vars = T, geometry = TRUE)  %>%
+mutate(FemHeadPer = (B11001_006E/B11001_001E)*100,
+	       MaleHeadPer = (B11001_005E/B11001_001E)*100)
+
+chelsea.single <- merge(ch.single.get, ch.MA.single, by.x = 'NAME.y', by.y='NAME')
+
+
+make_percent <- function(x, digits = 2) {
+  paste0("%", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+
+tm_shape(chelsea.single) + tm_polygons(c("FemHeadPer", "MaleHeadPer"), style="quantile", palette=list("Oranges", "Purples"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent), border.col = "darkgray", title=c("Female Householder", "Male Householder")) + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tmap_options(show.messages = FALSE) + tm_layout(legend.position = c("left","top"))
+
+```
+
+
+\
+
+
+### Population in Poverty
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+###########################################      Population in Poverty    ######################################################################
+
+MA.PopPov.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B17010_002", # Income in the Past 12 Months Below Poverty Level (Family households in poverty)
+																					"B17010_001",  # Total Families Below Poverty Level
+																					"B17001_002", # Persons below poverty
+																					"B17001_001"),
+                     areas = area,
+                     summary_level = "tract") 
+MA.PopPov.ch <- MA.PopPov.ch[MA.PopPov.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>% 
+  	mutate(FamPovPer = sum(B17010_002)/sum(B17010_001),
+	       PopPovPer = sum(B17001_002)/sum(B17001_001),
+	       TotalPopPov = sum(B17001_002)) %>%
+	dplyr::select(City, FamPovPer, PopPovPer, TotalPopPov) %>%
+  left_join(Chelsea.MA,MA.PopPov.ch, by="City")
+MA.PopPov.ch <- MA.PopPov.ch[1,]
+Chelsea.MA <- cbind(MA.PopPov.ch)
+```
+* The percentage of family, who are in poverty is `r (round(Chelsea.MA$FamPovPer,4))*100` % in `r Chelsea.MA$City`.\
+* The percentage of population, who are in poverty is `r (round(Chelsea.MA$PopPovPer,4))*100` % in `r Chelsea.MA$City`.\
+* The total number of people, who are in poverty is `r Chelsea.MA$TotalPopPov` in `r Chelsea.MA$City`.\
+
+Followed is the Population in Poverty map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+
+ch.MA.pov <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B17010_002", # Income in the Past 12 Months Below Poverty Level (Family households in poverty)
+																					"B17010_001",  # Total Families Below Poverty Level
+																					"B17001_002", # Persons below poverty
+																					"B17001_001"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.pov.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B17010_002", # Income in the Past 12 Months Below Poverty Level (Family households in poverty)
+																					"B17010_001",  # Total Families Below Poverty Level
+																					"B17001_002", # Persons below poverty
+																					"B17001_001"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+	mutate(FamPovPer_BG = (B17010_002E/B17010_001E)*100,
+	       PopPovPer_BG = (B17001_002E/B17001_001E)*100,
+	       TotalPopPov_BG = B17001_002E) 
+
+chelsea.pov <- merge(ch.pov.get, ch.MA.pov, by.x = 'NAME.y', by.y='NAME')
+
+
+tm_shape(chelsea.pov) + tm_polygons("FamPovPer_BG", style="quantile", palette="Purples", border.col = "darkgray", title="Family in Poverty", popup.format = list(fun = make_percent), legend.format = list(fun = make_percent))  + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+
+
+```
+
+\
+
+
+### Elderly People Living Alone
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+########################################     Elderly People Living Alone    ##############################################################
+MA.old.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B11010_005", # Male householder, Living alone, 65 years and over
+																					"B11010_012", # Female householder, Living alone, 65 years and over
+																					"B11010_001"),
+                     areas = area,
+                     summary_level = "tract") 
+MA.old.ch <- MA.old.ch[MA.old.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>% 
+  mutate(OldAlonePer = (sum(B11010_012) + sum(B11010_005))/sum(B11010_001)) %>%
+	dplyr::select(City, OldAlonePer) %>%
+  left_join(Chelsea.MA,MA.old.ch, by="City")
+MA.old.ch <- MA.old.ch[1,]
+Chelsea.MA <- cbind(MA.old.ch) 
+## GIVE US NA
+```
+* The percentage of householders, who are living alone and are older than 65 years old is `r (round(Chelsea.MA$OldAlonePer,4))*100` % in `r Chelsea.MA$City`.\
+
+\
+
+## Educational Institutions
+\
+
+
+\
+
+### Number/Type of Schools
+\
+
+* `r Chelsea.MA$City` has 1 public school district, which contains 4007 students and 8 public schools. Also, `r  Chelsea.MA$City` has 2 private schools.(https://nces.ed.gov/) 
+
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Chelsea.MA$SchoolsDistrict <- 1
+Chelsea.MA$SchoolsDistStudents <- 4007
+Chelsea.MA$PubSchools <- 8
+Chelsea.MA$PvSchools <- 2
+```
+
+
+\
+
+
+### Number/Type of Universities
+\
+
+* `r Chelsea.MA$City` has no university.(https://nces.ed.gov/) 
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Chelsea.MA$NumUni <- 0
+```
+
+
+\
+
+###	Employment Numbers per Institution
+\
+
+
+* The major School District in `r Chelsea.MA$City` contains 252 teachers and 210 other staffs and the private schools in the city include 35 teachers.(http://www.usa.com/)
+
+
+\
+
+### Number of PK-12 Enrollment in Schools
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+############################################################################################################################
+
+                                             # ----------------------------- #
+                                             #    Educational Institutions   #
+                                             #-------------------------------#
+
+# Number of PK-12 Enrollment at block group level
+MA.Enrol.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B14001_003", # Enrolled in preschool
+																					"B14001_004", # Enrolled in kindergarten
+																					"B14001_005", # Enrolled in grade 1 to 4
+																					"B14001_006", # Enrolled in grade 5 to 8
+																					"B14001_007"),
+                     areas = area,
+                     summary_level = "tract") 
+MA.Enrol.ch <- MA.Enrol.ch[MA.Enrol.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>% 
+  mutate(EnrolPK12 = sum(B14001_003 + B14001_004 + B14001_005 + B14001_006 + B14001_007)) %>%
+	dplyr::select(City, EnrolPK12) %>%
+  left_join(Chelsea.MA, MA.Enrol.ch, by="City")
+MA.Enrol.ch <- MA.Enrol.ch[1,]
+Chelsea.MA <- cbind(MA.Enrol.ch)
+```
+* The total number of students, who enrolled in preschools to 12 grade levels in `r Chelsea.MA$City` schools is `r Chelsea.MA$EnrolPK12`.\
+
+\
+
+
+## Employment
+\
+
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+########################################################################################################################################
+
+                                                #----------------------#
+                                                #       EMPLOYMENT     #
+                                                #----------------------#
+
+
+##########################################    Number of Jobs within Community Boundaries   #############################################
+MA.Num.Jobs.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = "B08008_003",
+                     areas = area,
+                     summary_level = "tract")
+MA.Num.Jobs.ch <- MA.Num.Jobs.ch[MA.Num.Jobs.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  mutate(NumJobs = B08008_003) %>% 
+	dplyr::select(City, NumJobs) %>%
+  left_join(Chelsea.MA, MA.Num.Jobs.ch, by="City")
+MA.Num.Jobs.ch <- MA.Num.Jobs.ch[1,]
+Chelsea.MA <- cbind(MA.Num.Jobs.ch)
+
+```
+
+
+\
+
+
+### Labor Force (Total number, participation)
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+############################################# Labor Force (Total number, participation)  ####################################
+
+MA.Labors.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B23025_002", # Number of Labor Force 16 years and over
+														              "B23025_003", # Number of Civilian Labor Force 16 years and over
+														              "B23025_006", # Number of Armed Forces 16 years and over
+														              "B23025_001"),
+                     areas = area,
+                     summary_level = "tract") 
+MA.Labors.ch <- MA.Labors.ch[MA.Labors.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  mutate(LabForce = sum(B23025_002),
+	       LabForcePer = sum(B23025_002)/sum(B23025_001),
+	       CivLabForce = sum(B23025_003),
+	       CivLabForcePer = sum(B23025_003)/sum(B23025_001),
+	       Military = sum(B23025_006),
+	       MilitaryPer = 	sum(B23025_006)/sum(B23025_001),
+	       TotalWorkers = sum(B23025_001)) %>%
+	dplyr::select(City, LabForce, LabForcePer, CivLabForce, CivLabForcePer, Military, MilitaryPer, TotalWorkers)  %>%
+  left_join(Chelsea.MA, MA.Labors.ch, by="City")
+MA.Labors.ch <- MA.Labors.ch[1,]
+Chelsea.MA <- cbind(MA.Labors.ch)
+```
+* The number of labor force, who are 16 years and older in `r Chelsea.MA$City` is 14211 which is `r round(Chelsea.MA$LabForcePer,2)` of total number of labors (unemployed and not in labor force) of which 14164 are civilian labor forces and `r Chelsea.MA$Military` are armed labor forces.\
+
+Followed is the map of Labor Force of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+
+ch.MA.labors <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B23025_002", # Number of Labor Force 16 years and over
+														              "B23025_003", # Number of Civilian Labor Force 16 years and over
+														              "B23025_006", # Number of Armed Forces 16 years and over
+														              "B23025_001"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.labors.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B23025_002", # Number of Labor Force 16 years and over
+														              "B23025_003", # Number of Civilian Labor Force 16 years and over
+														              "B23025_006", # Number of Armed Forces 16 years and over
+														              "B23025_001"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+	mutate(LabForce = B23025_002E,
+	       LabForcePer = B23025_002E/B23025_001E,
+	       CivLabForce = B23025_003E,
+	       CivLabForcePer = B23025_003E/B23025_001E,
+	       Military = B23025_006E,
+	       MilitaryPer = 	B23025_006E/B23025_001E,
+	       TotalWorkers = B23025_001E) 
+
+chelsea.labors <- merge(ch.labors.get, ch.MA.labors, by.x = 'NAME.y', by.y='NAME')
+
+
+tm_shape(chelsea.labors) + tm_polygons("LabForce", style="pretty", palette="seq", border.col = "darkgray", title="Number of Labors") + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"), basemaps = "Stamen.TonerLite")
+```
+
+\
+
+### Employed and Unemployed
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#####################################################    Employed and Unemployed   ####################################
+
+MA.Emp.Unemp.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B23025_003", # Number of civilian Labor Force 16 years and over
+														              "B23025_004", # Number of Employed individuals 16 years and over
+														              "B23025_005"),
+                     areas = area,
+                     summary_level = "tract")
+MA.Emp.Unemp.ch <- MA.Emp.Unemp.ch[MA.Emp.Unemp.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  mutate(EmpRate = sum(B23025_004)/sum(B23025_003),
+	       UnempRate = sum(B23025_005)/sum(B23025_003),
+	       EmployedCLF = sum(B23025_004),
+	       UnemployedCLF = sum(B23025_005)) %>%
+	dplyr::select(City ,EmpRate, UnempRate, EmployedCLF, UnemployedCLF) %>%
+  left_join(Chelsea.MA, MA.Emp.Unemp.ch, by="City")
+MA.Emp.Unemp.ch <- MA.Emp.Unemp.ch[1,]
+Chelsea.MA <- cbind(MA.Emp.Unemp.ch)
+```
+* The rate of employment in `r Chelsea.MA$City` is `r round(Chelsea.MA$EmpRate,2)*100`%.\
+* The rate of unemployment in `r Chelsea.MA$City` is `r round(Chelsea.MA$UnempRate,2)*100`%.\
+
+Followed is Employed and Unemployed map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ch.MA.emp <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B23025_003", # Number of civilian Labor Force 16 years and over
+														              "B23025_004", # Number of Employed individuals 16 years and over
+														              "B23025_005"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.emp.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B23025_003", # Number of civilian Labor Force 16 years and over
+														              "B23025_004", # Number of Employed individuals 16 years and over
+														              "B23025_005"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+	mutate(EmpRate_BG = (B23025_004E/B23025_003E)*100,
+	       UnempRate_BG = (B23025_005E/B23025_003E)*100,
+	       EmployedCLF_BG = B23025_004E,
+	       UnemployedCLF_BG = B23025_005E) 
+
+chelsea.emp <- merge(ch.emp.get, ch.MA.emp, by.x = 'NAME.y', by.y='NAME')
+
+tm_shape(chelsea.emp) + tm_polygons(c("EmpRate_BG","UnempRate_BG"), style="quantile", palette=list("Greens","seq"), border.col = "darkgray", title=c("Employment rate","Unemployment rate"), popup.format = list(fun = make_percent), legend.format = list(fun = make_percent))+ tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+
+### Major Employers by NCAIS Code
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+################################    Major Employers by NCAIS Code    ##########################################
+MA.Emp.NCAIS.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("C24030_002", # Number of male by industry for the civilian employed, 16 years and over
+														              "C24030_029", # Number of female by industry for the civilian employed, 16 years and over
+														              "C24030_001"),
+                     areas = area,
+                     summary_level = "tract")
+MA.Emp.NCAIS.ch <- MA.Emp.NCAIS.ch[MA.Emp.NCAIS.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  mutate(MaleNCAIS = sum(C24030_002),
+	       FemaleNCAIS = sum(C24030_029),
+	       MaleNCAISPer = sum(C24030_002)/sum(C24030_001),
+	       FemaleNCAISPer = sum(C24030_029)/sum(C24030_001)) %>%
+	dplyr::select(City , MaleNCAIS, FemaleNCAIS, MaleNCAISPer, FemaleNCAISPer) %>%
+  left_join(Chelsea.MA, MA.Emp.NCAIS.ch, by="City")
+MA.Emp.NCAIS.ch <- MA.Emp.NCAIS.ch[1,]
+Chelsea.MA <- cbind(MA.Emp.NCAIS.ch)
+```
+* Number of male by industry for the civilian employed in `r Chelsea.MA$City` is `r Chelsea.MA$MaleNCAIS` which is `r round(Chelsea.MA$MaleNCAISPer,2)` of population, who are 16 years and over.\
+* Number of female by industry for the civilian employed in `r Chelsea.MA$City` is `r Chelsea.MA$FemaleNCAIS` which is `r round(Chelsea.MA$FemaleNCAISPer,2)` of population, who are 16 years and over.\
+
+Followed is the map of the Major Employers by NCAIS Code of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ch.MA.majorEmp <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("C24030_002", # Number of male by industry for the civilian employed, 16 years and over
+														              "C24030_029", # Number of female by industry for the civilian employed, 16 years and over
+														              "C24030_001"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.majorEmp.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("C24030_002", # Number of male by industry for the civilian employed, 16 years and over
+														              "C24030_029", # Number of female by industry for the civilian employed, 16 years and over
+														              "C24030_001"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+  mutate(MaleNCAIS_BG = C24030_002E,
+	       FemaleNCAIS_BG = C24030_029E,
+	       MaleNCAISPer_BG = (C24030_002E/C24030_001E)*100,
+	       FemaleNCAISPer_BG = (C24030_029E/C24030_001E)*100) 
+
+chelsea.majorEmp <- merge(ch.majorEmp.get, ch.MA.majorEmp, by.x = 'NAME.y', by.y='NAME')
+
+
+tm_shape(chelsea.majorEmp) + tm_polygons(c("MaleNCAIS_BG","FemaleNCAIS_BG"), style="pretty", palette=list("Greens","seq"), border.col = "darkgray", title=c("MaleNCAIS","FemaleNCAIS")) + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+
+```
+
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+tm_shape(chelsea.majorEmp) + tm_polygons(c("MaleNCAISPer_BG","FemaleNCAISPer_BG"), style="quantile", palette=list("Blues","Reds"), border.col = "darkgray", title=c("MaleNCAIS Pecentage","FemaleNCAIS Percentage"),popup.format = list(fun = make_percent), legend.format = list(fun = make_percent)) + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+```
+
+
+
+
+\
+
+### Top Industries by NCAIS Code
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+######################################    Top Industries by NCAIS Code   ##################################################
+
+MA.Industries.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("C24030_003", # Agriculture, forestry, fishing and hunting, and mining (Male)
+														              "C24030_030", # Agriculture, forestry, fishing and hunting, and mining (Female)
+														              "C24030_006", # Construction (Male)
+														              "C24030_033", # Construction (Female)
+														              "C24030_007", # Manufacturing (Male)
+														              "C24030_034", # Manufacturing (Female)
+														              "C24030_008", # Wholesale trade (Male)
+														              "C24030_035", # Wholesale trade (Female)
+														              "C24030_009", # Retail trade (Male)
+														              "C24030_036", # Retail trade (Female)
+														              "C24030_010", # Transportation and warehousing, and utilities (Male)
+														              "C24030_037", # Transportation and warehousing, and utilities (Female)
+														              "C24030_013", # Information (Male)
+														              "C24030_040", # Information (Female)
+														              "C24030_014", # Finance and insurance, and real estate, and rental and leasing (Male)
+														              "C24030_041", # Finance and insurance, and real estate, and rental and leasing (Female)
+														              "C24030_017", # Professional, scientific, and management, and administrative, and waste management services (Male)
+														              "C24030_044", # Professional, scientific, and management, and administrative, and waste management services (Female)
+														              "C24030_021", # Educational services, and health care and social assistance (Male)
+														              "C24030_048", # Educational services, and health care and social assistance (Female)
+														              "C24030_024", # Arts, entertainment, and recreation, and accommodation and food services (Male)
+														              "C24030_051", # Arts, entertainment, and recreation, and accommodation and food services (Female)
+														              "C24030_027", # Other services, except public administration (Male)
+														              "C24030_054", # Other services, except public administration (Female)
+														              "C24030_028", # Public administration (Male)
+														              "C24030_055", # Public administration (Female)
+														              "C24030_001"), # Total,
+                     areas = area,
+                     summary_level = "tract")
+
+MA.Industries.ch <- MA.Industries.ch[MA.Industries.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  mutate(Agriculture = sum(C24030_003 + C24030_030)/sum(C24030_001),
+	       Construction = sum(C24030_006 + C24030_033)/sum(C24030_001),
+	       Manufacturing = sum(C24030_007 + C24030_034)/sum(C24030_001),
+	       WholesaleTrade = sum(C24030_008 + C24030_035)/sum(C24030_001),
+	       RetailTrade = sum(C24030_009 + C24030_036)/sum(C24030_001),
+	       Transportation = sum(C24030_010 + C24030_037)/sum(C24030_001),
+	       Information = sum(C24030_013 + C24030_040)/sum(C24030_001),
+	       Finance_Ins = sum(C24030_014 + C24030_041)/sum(C24030_001),
+	       Professional = sum(C24030_017 + C24030_044)/sum(C24030_001),
+	       Educ_Health_SocSvcs = sum(C24030_021 + C24030_048)/sum(C24030_001),
+	       RecreationEtc = sum(C24030_024 + C24030_051)/sum(C24030_001),
+	       OtherIndustries = sum(C24030_027 + C24030_054)/sum(C24030_001),
+	       PublicAdmin = sum(C24030_028 + C24030_055)/sum(C24030_001)) %>%
+	dplyr::select(City,Agriculture,Construction,Manufacturing,WholesaleTrade,RetailTrade,Transportation,Information,
+	       Finance_Ins,Professional,Educ_Health_SocSvcs,RecreationEtc,OtherIndustries,PublicAdmin) %>%
+  left_join(Chelsea.MA, MA.Industries.ch, by="City")
+
+MA.Industries.ch <- MA.Industries.ch[1,]
+Chelsea.MA <- cbind(MA.Industries.ch)
+```
+* The percentage of people, who are in agriculture, forestry, fishing, hunting, and mining in `r Chelsea.MA$City` is `r (round(Chelsea.MA$Agriculture,4))*100`%.\
+
+* The percentage of people, who are in construction in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$Construction,4))*100`%.\
+
+* The percentage of people, who are in manufacturing in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$Manufacturing,4))*100`%.\
+
+* The percentage of people, who are in wholesale trade in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$WholesaleTrade,4))*100`%.\
+
+* The percentage of people, who are in retail trade in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$RetailTrade,4))*100`%.\
+
+* The percentage of people, who are in transportation and warehousing, and utilities in `r Chelsea.MA$City`state is `r (round(Chelsea.MA$Transportation,4))*100`%.\
+
+* The percentage of people, who are in information in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$Information,4))*100`%.\
+
+* The percentage of people, who are in finance and insurance, and real estate, and rental and leasing in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$Finance_Ins,4))*100`%.\
+
+* The percentage of people, who are in professional, scientific, and management, and administrative, and waste management services in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$Professional,4))*100`%.\
+
+* The percentage of people, who are in educational services, and health care and social assistance in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$Educ_Health_SocSvcs,4))*100`%.\
+
+* The percentage of people, who are in arts, entertainment, and recreation, and accommodation and food services in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$RecreationEtc,4))*100`%.\
+
+* The percentage of people, who are in other services, except public administration in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$OtherIndustries,4))*100`%.\
+
+* The percentage of people, who are in Public administration in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$PublicAdmin,4))*100`%.\
+\
+
+### Earning Breakdown 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+###########################    Earning Breakdown   ####################################
+MA.Earning.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = "B20017_001",
+                     areas = area,
+                     summary_level = "tract") 
+
+MA.Earning.ch <- MA.Earning.ch[MA.Earning.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  mutate(MedEarning = median(B20017_001)) %>%
+	dplyr::select(City,MedEarning) %>%
+  left_join(Chelsea.MA, MA.Earning.ch, by="City")
+MA.Earning.ch <- MA.Earning.ch[1,]
+Chelsea.MA <- cbind(MA.Earning.ch)
+```
+* The median earning in `r Chelsea.MA$City` is 49890 Dollar.\
+
+Followed is the Median Earning map of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="",results='hide'}
+## MAP
+ch.MA.earning <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = "B20017_001",
+                     areas = area,
+                     summary_level = "block group")
+
+ch.earning.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = 'B20017_001', 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+  mutate(MedEarning = B20017_001E)
+
+chelsea.earning <- merge(ch.earning.get, ch.MA.earning, by.x = 'NAME.y', by.y='NAME')
+
+make_dollar <- function(x, digits = 0) {
+  paste0("$", formatC(x, digits = digits, format = "f", big.mark = ","))
+}
+
+
+tm_shape(chelsea.earning) + tm_polygons("MedEarning" , palette="seq", style = "quantile", title = "Median Earning", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,view.legend.position = c("right", "bottom"),basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") 
+
+
+```
+
+\
+
+
+### Employee Age
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################    Employee Age   #############################################################
+
+MA.Emp.Age.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B23001_005","B23001_007","B23001_012","B23001_014","B23001_019","B23001_021","B23001_026","B23001_028", # Age 29 or younger male
+								"B23001_033","B23001_035","B23001_040","B23001_042","B23001_047","B23001_049", # Age 30 to 54 male
+								"B23001_054","B23001_056","B23001_061","B23001_063","B23001_068","B23001_070","B23001_075","B23001_080","B23001_085", # Age 55 or older male
+								"B23001_091","B23001_093","B23001_098","B23001_100","B23001_105","B23001_107","B23001_112","B23001_114", # Age 29 or younger female
+								"B23001_119","B23001_121","B23001_126","B23001_128","B23001_133","B23001_135", # Age 30 to 54 female
+								"B23001_140","B23001_142","B23001_147","B23001_149","B23001_154","B23001_156","B23001_161","B23001_166","B23001_171", # Age 55 or older female
+														              "B23001_001"),
+                     areas = area,
+                     summary_level = "tract") 
+
+MA.Emp.Age.ch <- MA.Emp.Age.ch[MA.Emp.Age.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  mutate(AgeEmpU29 = B23001_005+B23001_007+B23001_012+B23001_014+B23001_019+B23001_021+B23001_026+B23001_028+
+	         B23001_091+B23001_093+B23001_098+B23001_100+B23001_105+B23001_107+B23001_112+B23001_114,
+	       AgeEmp3054 = B23001_033+B23001_035+B23001_040+B23001_042+B23001_047+B23001_049+
+	         B23001_119+B23001_121+B23001_126+B23001_128+B23001_133+B23001_135,
+	       AgeEmpO55 = B23001_054+B23001_056+B23001_061+B23001_063+B23001_068+B23001_070+B23001_075+B23001_080+B23001_085+
+	        B23001_140+B23001_142+B23001_147+B23001_149+B23001_154+B23001_156+B23001_161+B23001_166+B23001_171,
+         AgeEmpU29 = sum(AgeEmpU29),
+         AgeEmp3054 = sum(AgeEmp3054),
+         AgeEmpO55 = sum(AgeEmpO55),
+         AgeEmpU29Per_BG = sum(B23001_005+B23001_007+B23001_012+B23001_014+B23001_019+B23001_021+B23001_026+B23001_028+
+	         B23001_091+B23001_093+B23001_098+B23001_100+B23001_105+B23001_107+B23001_112+B23001_114)/sum(B23001_001),
+	        AgeEmp3054Per_BG = sum(B23001_033+B23001_035+B23001_040+B23001_042+B23001_047+B23001_049+
+	         B23001_119+B23001_121+B23001_126+B23001_128+B23001_133+B23001_135)/sum(B23001_001),
+	       AgeEmpO55Per_BG = sum(B23001_054+B23001_056+B23001_061+B23001_063+B23001_068+B23001_070+B23001_075+B23001_080+B23001_085+
+	        B23001_140+B23001_142+B23001_147+B23001_149+B23001_154+B23001_156+B23001_161+B23001_166+B23001_171)/sum(B23001_001)) %>%
+  dplyr::select(City ,AgeEmpU29, AgeEmp3054, AgeEmpO55, AgeEmpU29Per_BG,AgeEmp3054Per_BG,AgeEmpO55Per_BG) %>%
+  left_join(Chelsea.MA, MA.Emp.Age.ch, by="City")
+
+MA.Emp.Age.ch <- MA.Emp.Age.ch[1,]
+Chelsea.MA <- cbind(MA.Emp.Age.ch)
+```
+* The number of workers, who are younger than 29 years old in `r Chelsea.MA$City` is `r Chelsea.MA$AgeEmpU29` which is `r (round(Chelsea.MA$AgeEmpU29Per,4))*100`% of total number of workers.\
+
+* The number of workers, who are between 30 and 54 years old in `r Chelsea.MA$City` is `r Chelsea.MA$AgeEmp3054` which is `r (round(Chelsea.MA$AgeEmp3054Per,4))*100`% of total number of workers.\
+
+* The number of workers, who are older than 55 years old in `r Chelsea.MA$City` is `r Chelsea.MA$AgeEmpO55` which is `r (round(Chelsea.MA$AgeEmpO55Per,4))*100`% of total number of workers.\
+
+\
+
+
+### Employee Race
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################      Employee Race    ############################################################
+MA.Emp.Race.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("C23002A_007","C23002A_012","C23002A_020","C23002A_025","C23002A_005","C23002A_018", # White alone
+														              "C23002B_007","C23002B_012","C23002B_020","C23002B_025","C23002B_005","C23002B_018", # Black or African American alone
+														              "C23002D_007","C23002D_012","C23002D_020","C23002D_025","C23002D_005","C23002D_018", # Asian alone
+														              "C23002I_007","C23002I_012","C23002I_020","C23002I_025","C23002I_005","C23002I_018", # Hispanic or Latino alone
+														              "C23002G_007","C23002G_012","C23002G_020","C23002G_025","C23002G_005","C23002G_018",# Two or more races
+														              "B23001_001"),
+                     areas = area,
+                     summary_level = "tract")
+
+MA.Emp.Race.ch <- MA.Emp.Race.ch[MA.Emp.Race.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  mutate(WhiteEmp = C23002A_007+C23002A_012+C23002A_020+C23002A_025+C23002A_005+C23002A_018,
+	       BlackEmp = C23002B_007+C23002B_012+C23002B_020+C23002B_025+C23002B_005+C23002B_018,
+	       AsianEmp = C23002D_007+C23002D_012+C23002D_020+C23002D_025+C23002D_005+C23002D_018,
+	       HispanicEmp = C23002I_007+C23002I_012+C23002I_020+C23002I_025+C23002I_005+C23002I_018,
+	       TwoOrMoreEmp = C23002G_007+C23002G_012+C23002G_020+C23002G_025+C23002G_005+C23002G_018,
+         WhiteEmp = sum(WhiteEmp),
+         BlackEmp = sum(BlackEmp),
+         AsianEmp = sum(AsianEmp),
+         HispanicEmp = sum(HispanicEmp),
+         TwoOrMoreEmp = sum(TwoOrMoreEmp),
+         WhiteEmpPer = sum(C23002A_007+C23002A_012+C23002A_020+C23002A_025+C23002A_005+C23002A_018)/sum(B23001_001),
+	       BlackEmpPer = sum(C23002B_007+C23002B_012+C23002B_020+C23002B_025+C23002B_005+C23002B_018)/sum(B23001_001),
+	       AsianEmpPer = sum(C23002D_007+C23002D_012+C23002D_020+C23002D_025+C23002D_005+C23002D_018)/sum(B23001_001),
+	       HispanicEmpPer = sum(C23002I_007+C23002I_012+C23002I_020+C23002I_025+C23002I_005+C23002I_018)/sum(B23001_001),
+	       TwoOrMoreEmpPer = sum(C23002G_007+C23002G_012+C23002G_020+C23002G_025+C23002G_005+C23002G_018)/sum(B23001_001)) %>%
+	dplyr::select(City ,WhiteEmp, BlackEmp, AsianEmp, HispanicEmp, TwoOrMoreEmp,
+	       WhiteEmpPer, BlackEmpPer, AsianEmpPer, HispanicEmpPer, TwoOrMoreEmpPer) %>%
+  left_join(Chelsea.MA, MA.Emp.Race.ch, by="City")
+MA.Emp.Race.ch <- MA.Emp.Race.ch[1,]
+Chelsea.MA <- cbind(MA.Emp.Race.ch)
+```
+
+* The number of white workers in `r Chelsea.MA$City` is `r Chelsea.MA$WhiteEmp` which is `r (round(Chelsea.MA$WhiteEmpPer,4))*100`% of total number of workers.\
+* The number of black workers in `r Chelsea.MA$City` is `r Chelsea.MA$BlackEmp` which is `r (round(Chelsea.MA$BlackEmpPer,4))*100`% of total number of workers.\
+* The number of asian workers in `r Chelsea.MA$City` is `r Chelsea.MA$AsianEmp` which is `r (round(Chelsea.MA$AsianEmpPer,4))*100`% of total number of workers.\
+* The number of hispanic or latino workers in `r Chelsea.MA$City` is `r Chelsea.MA$HispanicEmp` which is `r (round(Chelsea.MA$HispanicEmpPer,4))*100`% of total number of workers.\
+* The number of workers, who have two or more races in `r Chelsea.MA$City` is `r Chelsea.MA$TwoOrMoreEmp` which is `r (round(Chelsea.MA$TwoOrMoreEmpPer,4))*100`% of total number of workers.\
+\
+
+
+### Employee Education
+\
+```{r message=FALSE, warning=FALSE, ,echo=FALSE, results='hide', comment=""}
+#############################################   Employee Education    ########################################################
+
+MA.Educ.Emp.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B16010_003", # Less than high school graduate in labor force
+														              "B16010_016", # High school graduate in labor force 
+														              "B16010_029", # Some college or associate's degree in labor force
+														              "B16010_042",
+														              "B16010_001"), # Total
+                     areas = area,
+                     summary_level = "tract")
+
+MA.Educ.Emp.ch <- MA.Educ.Emp.ch[MA.Educ.Emp.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  	mutate(LessThanHSLabor = sum(B16010_003),
+	       HSGradLabor = sum(B16010_016),
+	       SomeCollLabor = sum(B16010_029),
+	       BachOrHigherLabor = sum(B16010_042),
+	       
+	       LessThanHSLaborPer = sum(B16010_003)/sum(B16010_001),
+	       HSGradLaborPer = sum(B16010_016)/sum(B16010_001),
+	       SomeCollLaborPer = sum(B16010_029)/sum(B16010_001),
+	       BachOrHigherLaborPer = sum(B16010_042)/sum(B16010_001)) %>%
+	dplyr::select(City ,LessThanHSLabor, HSGradLabor, SomeCollLabor, BachOrHigherLabor,
+	       LessThanHSLaborPer, HSGradLaborPer, SomeCollLaborPer, BachOrHigherLaborPer) %>%
+  left_join(Chelsea.MA, MA.Educ.Emp.ch, by="City")
+
+MA.Educ.Emp.ch <- MA.Educ.Emp.ch[1,]
+Chelsea.MA <- cbind(MA.Educ.Emp.ch)
+```
+* The number of workers, who have less than high school degree in `r Chelsea.MA$City` is `r Chelsea.MA$LessThanHSLabor` which is `r (round(Chelsea.MA$LessThanHSLaborPer,4))*100`% of total number of workers.\
+* The number of workers, who have high school degree in `r Chelsea.MA$City` is `r Chelsea.MA$HSGradLabor` which is `r (round(Chelsea.MA$HSGradLaborPer,4))*100`% of total number of workers.\
+* The number of workers, who have some college or associates degree in `r Chelsea.MA$City` is `r Chelsea.MA$SomeCollLabor` which is `r (round(Chelsea.MA$SomeCollLaborPer,4))*100`% of total number of workers.\
+* The number of workers, who have bachelors degree or higher in `r Chelsea.MA$City` is `r Chelsea.MA$BachOrHigherLabor` which is `r (round(Chelsea.MA$BachOrHigherLaborPer,4))*100`% of total number of workers.\
+
+\
+
+### Employee Sex
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#############################################    Employee Sex   #############################################################
+
+MA.Emp.Sex.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B23001_005", # Employed males
+														              "B23001_007", 
+														              "B23001_012",
+														              "B23001_014",
+														              "B23001_019",
+														              "B23001_021",
+														              "B23001_026",
+														              "B23001_028",
+														              "B23001_033",
+														              "B23001_035",
+														              "B23001_040",
+														              "B23001_042",
+														              "B23001_047",
+														              "B23001_049",
+														              "B23001_054",
+														              "B23001_056",
+														              "B23001_061",
+														              "B23001_063",
+														              "B23001_068",
+														              "B23001_070",
+														              "B23001_075",
+														              "B23001_080",
+														              "B23001_085",
+														              "B23001_091", # Employed females
+														              "B23001_093",
+														              "B23001_098",
+														              "B23001_100",
+														              "B23001_105",
+														              "B23001_107",
+														              "B23001_112",
+														              "B23001_114",
+														              "B23001_119",
+														              "B23001_121",
+														              "B23001_126",
+														              "B23001_128",
+														              "B23001_133",
+														              "B23001_135",
+														              "B23001_140",
+														              "B23001_142",
+														              "B23001_147",
+														              "B23001_149",
+														              "B23001_154",
+														              "B23001_156",
+														              "B23001_161",
+														              "B23001_166",
+														              "B23001_171",
+														              "B23001_001"),
+                     areas = area,
+                     summary_level = "tract") 
+
+MA.Emp.Sex.ch <- MA.Emp.Sex.ch[MA.Emp.Sex.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  	mutate(EmpMale = B23001_005 + B23001_007 + B23001_012 + B23001_014 + B23001_019 + B23001_021 + B23001_026 + B23001_028 + B23001_033 + B23001_035 + B23001_040 + B23001_042 + B23001_047 + B23001_049 + B23001_054 + B23001_056 + B23001_061 + B23001_063 + B23001_068+ B23001_070 + B23001_075 + B23001_080 + B23001_085,
+	  EmpFemale = B23001_091 + B23001_093 + B23001_098 + B23001_100 + B23001_105 + B23001_107 + B23001_112 + B23001_114 + B23001_119 + B23001_121 + B23001_126+ B23001_128 + B23001_133 + B23001_135 + B23001_140 + B23001_142 + B23001_147 + B23001_149 + B23001_154 + B23001_156 + B23001_161 + B23001_166 + B23001_171,
+	  EmpMale = sum(EmpMale),
+	  EmpFemale = sum(EmpFemale),
+	  TotalEmp = EmpMale + EmpFemale,
+	  EmpMalePer = EmpMale/	sum(B23001_001),
+	  EmpFemalePer = EmpFemale/sum(B23001_001)) %>%
+	dplyr::select(City, EmpMale, EmpFemale, TotalEmp, EmpMalePer, EmpFemalePer) %>%
+  left_join(Chelsea.MA, MA.Emp.Sex.ch, by="City")
+MA.Emp.Sex.ch <- MA.Emp.Sex.ch[1,]
+Chelsea.MA <- cbind(MA.Emp.Sex.ch)
+```
+* The number of male workers in `r Chelsea.MA$City` is `r Chelsea.MA$EmpMale` which is `r (round(Chelsea.MA$EmpMalePer,4))*100`% of total number of workers.\
+* The number of female workers in `r Chelsea.MA$City` is `r Chelsea.MA$EmpFemale` which is `r (round(Chelsea.MA$EmpFemalePer,4))*100`% of total number of workers.\
+
+
+\
+
+## Healthcare
+\
+
+### Number of Hospitals
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+Chelsea.MA$Hospitals <- 1
+```
+
+
+* `r Chelsea.MA$City` has 1 hospital.(https://www.ahd.com/)
+
+\
+
+###	Number of Nursing Homes 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Chelsea.MA$NursingHomes <- 3
+```
+
+
+* `r Chelsea.MA$City` has 3 nursing homes. (https://nursinghomedirectory.com/rhode-island/north-kingstown)
+
+
+## Municipal Finances
+\
+
+###	Revenue Streams
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Chelsea.MA$RevenueGeneralFundTotalFY19 <- 100884107
+Chelsea.MA$RevenueTaxesFY19 <- 78427075 
+Chelsea.MA$RevenuePriorYearTaxesFY19 <- 1650000
+Chelsea.MA$RevenueInterestOnLatePayFY19 <- 450000 
+Chelsea.MA$RevenuesQDCPilotsFY19 <- 2823787 
+Chelsea.MA$RevenueTownClerkFY19 <- 733000 
+Chelsea.MA$RevenueProbateCourtFY19 <- 53000 
+Chelsea.MA$RevenuePoliceFY19 <- 211050
+Chelsea.MA$RevenueHarborMasterFY19 <- 122500
+Chelsea.MA$RevenueAnimalControlFY19 <- 1250
+Chelsea.MA$RevenueTransFromAmbulanceFY19 <- 600000
+Chelsea.MA$RevenuePlanningFY19 <- 65000
+Chelsea.MA$RevenueCodeEnforcementFY19 <- 400000
+Chelsea.MA$RevenueFinanceFY19 <- 150000
+Chelsea.MA$RevenueAssessmentFY19 <- 150
+Chelsea.MA$RevenuePublicWorksFY19 <- 10000
+Chelsea.MA$RevenueMVBaseFY19 <- 577829
+Chelsea.MA$RevenueMVPhaseOutFY19 <- 192589
+Chelsea.MA$RevenueStatePilotFY19 <- 1700
+Chelsea.MA$RevenuePubServiceFY19 <- 328695
+Chelsea.MA$RevenueHotelMealAndBeverageFY19 <- 733696
+Chelsea.MA$RevenueSchoolHousingAidFY19 <- 1020135
+Chelsea.MA$RevenueLibraryConstructionAidFY19 <- 26684
+Chelsea.MA$RevenueOtherFY19 <- 1258744
+Chelsea.MA$RevenueAllocatedCostFY19 <- 532070
+Chelsea.MA$RevenuePassThroughLibraryFY19 <- 278709
+Chelsea.MA$RevenuePassThroughSchoolAidFY19 <- 10236444
+```
+* The total general fund revenue for North Kingstown city is $100,884,107 in fiscal year 2019, which contains following items: Taxes with 78,427,075 Dollar, prior year taxes with 1,650,000 Dollar, interest on late pay with 450,000, QDS-pilots with 2,823,787 Dollar, town clerk with 733,000 Dollar, probate court with 53,000 Dollar, police with 211,050 Dollar, harbor master with 122,500 Dollar, animal control with 1,250 Dollar, trans from ambulance with 600,000 Dollar, planning with 65,000 Dollar, code enforcement with 400,000 Dollar, finance with 150,000 Dollar, assessment with 150 Dollar, public works with 10,000 Dollar, MV base with 577,829 Dollar, MV phase out with 192,589 Dollar, state-pilot with 1,700 Dollar, pub service with 328,695 Dollar, hotel, meal and beverage with 733,696 Dollar, school housing aid with 1,020,135 Dollar, library construction aid with 26,684 Dollar, other with 1,258,744 Dollar, allocated cost with 532,070 Dollar, pass through library with 278,709 Dollar, and pass through school aid with 10,236,444 Dollar.(https://www.northkingstown.org/DocumentCenter/View/2938/FY2020-Adopted-Budget-PDF)
+
+\
+
+###	Major Expense Drivers
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Chelsea.MA$ExpendituresGeneralFundTotalFY19 <- 100884107
+Chelsea.MA$ExpendituresTownCouncilFY19 <- 85522
+Chelsea.MA$ExpendituresTownManagerFY19 <- 291577
+Chelsea.MA$ExpendituresTownClerkTotalFY19 <- 520272
+Chelsea.MA$ExpendituresCanvassingFY19 <- 129933
+Chelsea.MA$ExpendituresLegalFY19 <- 253000
+Chelsea.MA$ExpendituresFinanceFY19 <- 3025177
+Chelsea.MA$ExpendituresAssessorFY19 <- 267349
+Chelsea.MA$ExpendituresTechnologyFY19 <- 670829
+Chelsea.MA$ExpendituresPlanningFY19 <- 864445
+Chelsea.MA$ExpendituresCodeEnforcementFY19 <- 480554
+Chelsea.MA$ExpendituresSeniorCenterFY19 <- 567152
+Chelsea.MA$ExpendituresPWAdminFY19 <- 354139
+Chelsea.MA$ExpendituresPWEngineeringFY19 <- 364650
+Chelsea.MA$ExpendituresPWHighwayFY19 <- 3219379
+Chelsea.MA$ExpendituresPWFacilitiesFY19 <- 1156884
+Chelsea.MA$ExpendituresPoliceFY19 <- 7671877
+Chelsea.MA$ExpendituresAnimalControlFY19 <- 98455
+Chelsea.MA$ExpendituresHarborMasterFY19 <- 82102
+Chelsea.MA$ExpendituresFireFY19 <- 10125855
+Chelsea.MA$ExpendituresUtilitiesFY19 <- 927000
+Chelsea.MA$ExpendituresCivicFY19 <- 158695
+Chelsea.MA$ExpendituresQuonsetMSAFY19 <- 652080
+Chelsea.MA$ExpendituresDebtServiceFY19 <- 4507928
+Chelsea.MA$ExpendituresLibraryFY19 <- 1592418
+Chelsea.MA$ExpendituresSchoolCapitalFY19 <- 500000
+Chelsea.MA$ExpendituresSchoolFY19 <- 62316833
+```
+
+* The total amount of general fund expenditures for `r Chelsea.MA$City` is $100,884,107 in Fiscal Year 2019 and the major expense driver is related to school, which is 62,316,833 Dollar. The other expenditures include town council with 85,522 Dollar, town manager with 291,577 Dollar, town clerk with 520,272 Dollar, canvassing with 129,933 Dollar, legal with 253,000 Dollar, finance with 3,025,177 Dollar, assessor with 267,349 Dollar, technology with 670,829 Dollar, planning with 864,445 Dollar, code enforcement with 480,554 Dollar, senior center with 567,152 Dollar, PW: Admin with 354,139 Dollar, PW: Engineering with 364,650 Dollar, PW: Highway with 3,219,379 Dollar, PW: Facilities with 1,156,884 Dollar, police with 7,671,877 Dollar, animal control with 98,455 Dollar, harbor master with 82,102 Dollar, fire with 10,125,855 Dollar, utilities with 927,000 Dollar, civic with 158,695 Dollar, Quonset: MSA  with 652,080 Dollar, debt service with 4,507,928 Dollar, library with 1,592,418 Dollar, and school capital with 500,000 Dollar.(https://www.northkingstown.org/DocumentCenter/View/2938/FY2020-Adopted-Budget-PDF)
+
+
+
+\
+
+### FY20 Budget – Projected Deficits 
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Chelsea.MA$RevenueGeneralFundTotalFY20 <- 103318454
+Chelsea.MA$RevenueTaxesFY20 <- 80198265
+Chelsea.MA$RevenuePriorYearTaxesFY20 <- 1625000
+Chelsea.MA$RevenueInterestOnLatePayFY20 <- 385559
+Chelsea.MA$RevenuesQDCPilotsFY20 <- 2882576
+Chelsea.MA$RevenueTownClerkFY20 <- 915750
+Chelsea.MA$RevenueProbateCourtFY20 <- 48500
+Chelsea.MA$RevenuePoliceFY20 <- 366850
+Chelsea.MA$RevenueHarborMasterFY20 <- 124375
+Chelsea.MA$RevenueAnimalControlFY20 <- 4135
+Chelsea.MA$RevenueTransFromAmbulanceFY20 <- 600000
+Chelsea.MA$RevenuePlanningFY20 <- 62500
+Chelsea.MA$RevenueCodeEnforcementFY20 <- 420000
+Chelsea.MA$RevenueFinanceFY20 <- 350000
+Chelsea.MA$RevenueAssessmentFY20 <- 150
+Chelsea.MA$RevenuePublicWorksFY20 <- 10000
+Chelsea.MA$RevenueMVBaseFY20 <- 557756
+Chelsea.MA$RevenueMVPhaseOutFY20 <- 192589
+Chelsea.MA$RevenueStatePilotFY20 <- 1006
+Chelsea.MA$RevenuePubServiceFY20 <- 331080
+Chelsea.MA$RevenueHotelMealAndBeverageFY20 <- 780000
+Chelsea.MA$RevenueAirportFY20 <- 45000
+Chelsea.MA$RevenueSchoolHousingAidFY20 <- 949516
+Chelsea.MA$RevenueOtherFY20 <- 1220162
+Chelsea.MA$RevenueAllocatedCostFY20 <- 573860
+Chelsea.MA$RevenuePassThroughLibraryFY20 <- 290338
+Chelsea.MA$RevenuePassThroughSchoolAidFY20 <- 10383487
+
+
+Chelsea.MA$ExpendituresGeneralFundTotalFY20 <- 103318454
+Chelsea.MA$ExpendituresTownCouncilFY20 <- 89614
+Chelsea.MA$ExpendituresTownManagerFY20 <- 312755
+Chelsea.MA$ExpendituresTownClerkTotalFY20 <- 540276
+Chelsea.MA$ExpendituresCanvassingFY20 <- 112463
+Chelsea.MA$ExpendituresLegalFY20 <- 215000
+Chelsea.MA$ExpendituresFinanceFY20 <- 2944815
+Chelsea.MA$ExpendituresAssessorFY20 <- 350407
+Chelsea.MA$ExpendituresTechnologyFY20 <- 781280
+Chelsea.MA$ExpendituresPlanningFY20 <- 826199
+Chelsea.MA$ExpendituresCodeEnforcementFY20 <- 500335
+Chelsea.MA$ExpendituresSeniorCenterFY20 <- 602120
+Chelsea.MA$ExpendituresPWAdminFY20 <- 354933
+Chelsea.MA$ExpendituresPWEngineeringFY20 <- 385834
+Chelsea.MA$ExpendituresPWHighwayFY20 <- 3190457
+Chelsea.MA$ExpendituresPWFacilitiesFY20 <- 1281191
+Chelsea.MA$ExpendituresPoliceFY20 <- 8665978
+Chelsea.MA$ExpendituresAnimalControlFY20 <- 101047
+Chelsea.MA$ExpendituresHarborMasterFY20 <- 118361
+Chelsea.MA$ExpendituresFireFY20 <- 10005398
+Chelsea.MA$ExpendituresUtilitiesFY20 <- 812000
+Chelsea.MA$ExpendituresCivicFY20 <- 178238
+Chelsea.MA$ExpendituresQuonsetMSAFY20 <- 703933
+Chelsea.MA$ExpendituresDebtServiceFY20 <- 4446250
+Chelsea.MA$ExpendituresLibraryFY20 <- 1605338
+Chelsea.MA$ExpendituresSchoolFY20 <- 64194230
+```
+* The total general fund revenue for North Kingstown city is 103,318,454 Dollar in fiscal year 2020, which contains following items: Taxes with 80,198,265 Dollar, prior year taxes with 1,625,000 Dollar, interest on late pay with 385,559, QDS-pilots with 2,882,576 Dollar, town clerk with 915,750 Dollar, probate court with 48,500 Dollar, police with 366,850 Dollar, harbor master with 124,375 Dollar, animal control with 4,135 Dollar, trans from ambulance with 600,000 Dollar, planning with 62,500 Dollar, code enforcement with 420,000 Dollar, finance with 350,000 Dollar, assessment with 150 Dollar, public works with 10,000 Dollar, MV base with 557,756 Dollar, MV phase out with 192,589 Dollar, state-pilot with 1,006 Dollar, pub service with 331,080 Dollar, hotel, meal and beverage with 780,000 Dollar, airport with 45,000 Dollar, school housing aid with 949,516 Dollar, other with 1,220,162 Dollar, allocated cost with 573,860 Dollar, pass through library with 290,338 Dollar, and pass through school aid with 10,383,487 Dollar. The total amount of general fund expenditures for `r Chelsea.MA$City` is $103,318,454 in Fiscal Year 2020 and the major expense driver is related to school, which is 64,194,230 Dollar. The other expenditures include town council with 89,614 Dollar, town manager with 312,755 Dollar, town clerk with 540,276 Dollar, canvassing with 112,463 Dollar, legal with 215,000 Dollar, finance with 2,944,815 Dollar, assessor with 350,407 Dollar, technology with 781,280 Dollar, planning with 826,199 Dollar, code enforcement with 500,335 Dollar, senior center with 602,120 Dollar, PW: Admin with 354,933 Dollar, PW: Engineering with 385,834 Dollar, PW: Highway with 3,190,457 Dollar, PW: Facilities with 1,281,191 Dollar, police with 8,665,978 Dollar, animal control with 101047 Dollar, harbor master with 118361 Dollar, fire with 10,005,398 Dollar, utilities with 812,000 Dollar, civic with 178,238 Dollar, Quonset: MSA  with 703,933 Dollar, debt service with 4,446,250 Dollar, and library with 1,605,338 Dollar.(https://www.northkingstown.org/DocumentCenter/View/2938/FY2020-Adopted-Budget-PDF)
+
+
+\
+
+
+## Infrastructure
+\
+
+### Presence of Nearby Ports, Airports, Major Rail Facilities, or Intermodal Freight Facilities
+\
+
+* There is a port that is located at 2574 Davisville Road North Kingstown, RI, whose name is Davisville. The Port of Davisville offers 4,500 linear feet of berthing space, consisting of two piers (each 1,200 feet in length), a bulkhead, 32 ft controlling depth - mean low water (MLW), on-dock rail, and 58 acres of laydown and terminal storage. "North Atlantic Distribution, Inc. (NORAD) is a privately owned company located at the Port of Davisville in Rhode Island. NORAD is one of the largest auto importers in North America, serving as a port of entry, processing center and distribution hub for imported and domestic vehicles".(http://www.quonset.com/sea/port-services/). Quonset State Airport is a joint civil-military public airport located on Quonset Point, in northeastern North Kingstown, Rhode Island. It is a general aviation airport and there is no scheduled airline service available. Furthermore, there is a commuter rail station located in North Kingstown city, whose name is Wickford Junction. It is the southern terminus of the MBTA Commuter Rail Providence/Stoughton Line and serves as a park and ride location for commuters to Providence, Rhode Island, and Boston, Massachusetts. 
+
+
+
+
+\
+
+### Public Transport Reliability and Scope 
+\
+
+* There are Amtrak stations that are located about 9 miles of North Kingstown. (https://www.city-data.com/city/North-Kingstown-Rhode-Island.html). Also, there are Rhode Island Public Transit Authority (RIPTA) buses in North Kingstown.(https://www.northkingstown.org/391/Transportation)
+
+
+\
+
+### Internet Access
+\
+
+* There are two widely available broadband providers in North Kingstown, which are Viasat Internet and HughesNet. The availability of Viasat network is near one hundred percent of the area. HughesNet sells Satellite has availability in close to one hundred percent of North Kingstown. There are other options in North Kingstown, which are Verizon Fios and Cox Communications with shared territory in some blocks. In terms of network choices, Fiber, cable, and DSL are all present in North Kingstown. Between the local options, Fiber-based service is the stronger network type, and has 98.57 percent availability around the area. There are 13 internet providers in North Kingstown with 5 of those offering residential service. North Kingstown is the 12th most connected city in Rhode Island the fastest zip code in North Kingstown for June 2020 is 02852.(https://broadbandnow.com/Rhode-Island/North-Kingstown)
+
+
+\
+
+## Food Insecurity
+\
+
+\
+
+### Number of Grocery Stores
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Chelsea.MA$NumGrocery <- 31
+```
+* `r Chelsea.MA$City` has 31 Grocery Stores. (https://www.city-data.com/city/North-Kingstown-Rhode-Island.html)
+
+\
+
+### SNAP Recipients 
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+##########################################################################################################################
+
+                                                #----------------------#
+                                                #    FOOD INSECURITY   #
+                                                #----------------------#
+
+####################################################  SNAP Recipients  ###################################################         
+
+MA.Snap.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B22001_002", # Household received Food Stamps/SNAP in the past 12 months
+														"B22001_001"),
+                     areas = area,
+                     summary_level = "tract") 
+
+MA.Snap.ch <- MA.Snap.ch[MA.Snap.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  	mutate(SnapRec = sum(B22001_002)/sum(B22001_001)) %>%
+	dplyr::select(City ,SnapRec) %>%
+  left_join(Chelsea.MA, MA.Snap.ch, by="City")
+MA.Snap.ch <- MA.Snap.ch[1,]
+Chelsea.MA <- cbind(MA.Snap.ch)
+
+#######################################################################################################################################
+
+```
+* The percent of households, who received Food Stamps/SNAP in the past 12 months in `r Chelsea.MA$City` state is `r (round(Chelsea.MA$SnapRec,4))*100`%.\
+
+\
+
+## Housing
+\
+
+### Proportion of Renters to Owners
+\
+
+### Home Values
+\
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+                                                #----------------------#
+                                                #       HOUSING        #
+                                                #----------------------#
+
+######################   Proportion of Renters to Owners, Home Values   ########################################
+
+MA.Housing.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B25009_001", # Total Occupied Housing Units
+															 	"B25009_002", # Total Owner Occupied Housing Units
+															 	"B25009_010", # Total Renter Occupied Housing Units
+															 	"B25077_001", # Median Home Value
+															 	"B25082_001", # Aggregate value
+															 	"B25003_002"), # Owner occupied
+                     areas = area,
+                     summary_level = "tract") 
+
+MA.Housing.ch <- MA.Housing.ch[MA.Housing.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  mutate(MedianHValue = median(B25077_001),
+	       AvgHValue = sum(B25082_001)/sum(B25003_002),
+         RentersPer = sum(B25009_010)/sum(B25009_001),
+				 HomeOwnPer = sum(B25009_002)/sum(B25009_001),
+				 RentersToOwners = sum(B25009_010)/sum(B25009_002)) %>%
+	dplyr::select(City,RentersPer, HomeOwnPer, RentersToOwners, MedianHValue, AvgHValue) %>%
+  left_join(Chelsea.MA, MA.Housing.ch, by="City")
+MA.Housing.ch <- MA.Housing.ch[1,]
+Chelsea.MA <- cbind(MA.Housing.ch)
+```
+* The median house value in `r Chelsea.MA$City` is 343800 Dollar.\
+
+* The average house value in `r Chelsea.MA$City` is 402970.7 Dollar.\
+
+* The proportion of renters to owners in `r Chelsea.MA$City` is `r round(Chelsea.MA$RentersToOwners,3)`.\
+
+* The percentage of renters in `r Chelsea.MA$City` is `r (round(Chelsea.MA$RentersPer,2))*100`%.\
+
+* The percentage of owners in `r Chelsea.MA$City` is `r (round(Chelsea.MA$HomeOwnPer,2))*100`%.\
+
+Followed is the map of Proportion of Renters to Owners, Median Home Values, and Average Home Values of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## MAP
+ch.MA.housing <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B25009_001", # Total Occupied Housing Units
+															 	"B25009_002", # Total Owner Occupied Housing Units
+															 	"B25009_010", # Total Renter Occupied Housing Units
+															 	"B25077_001", # Median Home Value
+															 	"B25082_001", # Aggregate value
+															 	"B25003_002"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.housing.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B25009_001", # Total Occupied Housing Units
+															 	"B25009_002", # Total Owner Occupied Housing Units
+															 	"B25009_010", # Total Renter Occupied Housing Units
+															 	"B25077_001", # Median Home Value
+															 	"B25082_001", # Aggregate value
+															 	"B25003_002"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+rename(MedianHValue_BG = B25077_001E,
+	       AvgHValue_BG = B25082_001E / B25003_002E) %>%
+	mutate(RentersPer_BG = B25009_010E/B25009_001E,
+				 HomeOwnPer_BG = B25009_002E/B25009_001E,
+				 RentersToOwners_BG = B25009_010E/B25009_002E)
+
+chelsea.housing <- merge(ch.housing.get, ch.MA.housing, by.x = 'NAME.y', by.y='NAME')
+
+
+tm_shape(chelsea.housing) + tm_polygons("MedianHValue_BG" , palette="Blues", style = "quantile", title = "Median Home Value", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") + tm_layout(legend.position = c("left","top"))
+
+```
+\
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+tm_shape(chelsea.housing) + tm_polygons("AvgHValue_BG" , palette="Greens", style = "quantile", title = "Average Home Value", popup.format = list(fun = make_dollar), legend.format = list(fun = make_dollar)) + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray")+tm_layout(legend.position = c("left","top"))
+```
+
+
+\
+
+
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+tm_shape(chelsea.housing) + tm_polygons("RentersToOwners_BG" , palette="Reds", style = "quantile", title = "RentersToOwners") + tm_view(alpha = 0.85,basemaps = "Stamen.TonerLite") + tm_borders(col = "darkgray") + tm_layout(legend.position = c("left","top"))
+```
+
+\
+
+### Property Tax Rates
+\
+
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+Chelsea.MA$PropertyTaxRate <- 17.09
+```
+* Real Estate Tax Rate is 17.09 Dollar per thousand of assessed value for residential and commercial property in `r Chelsea.MA$City`.(https://www.northkingstown.org/Faq.aspx?QID=67)
+
+
+
+\
+
+
+
+\
+
+
+### Duration of Occupancy
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+#########################################      Duration of Occupancy    ####################################################
+MA.Dur.Occ.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B25039_001", # Median Year Householder Moved Into Unit by Tenure
+															 	"B25039_002", # Median Year Householder Moved Into Unit by Tenure (Owner)
+															 	"B25039_003"),
+                     areas = area,
+                     summary_level = "tract") 
+
+MA.Dur.Occ.ch <- MA.Dur.Occ.ch[MA.Dur.Occ.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  mutate(MedYrMovedIn = median(B25039_001), 
+				 MedYrRentMovedIn = median(B25039_003),
+				 MedYrOwnMovedIn = median(B25039_002)) %>%
+	dplyr::select(City, MedYrMovedIn, MedYrRentMovedIn, MedYrOwnMovedIn) %>%
+  left_join(Chelsea.MA, MA.Dur.Occ.ch, by="City")
+MA.Dur.Occ.ch <- MA.Dur.Occ.ch[1,]
+Chelsea.MA <- cbind(MA.Dur.Occ.ch)
+```
+
+* The median year that a homeowner moved into their current domicile in `r Chelsea.MA$City` is `r Chelsea.MA$MedYrOwnMovedIn`.\
+
+* The median year that a renter moved into their current domicile in `r Chelsea.MA$City` is `r Chelsea.MA$MedYrRentMovedIn`.\
+
+Followed is the map of Duration of Occupancy of the city.\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, comment="", results='hide'}
+## MAP
+ch.MA.dur <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B25039_001", # Median Year Householder Moved Into Unit by Tenure
+															 	"B25039_002", # Median Year Householder Moved Into Unit by Tenure (Owner)
+															 	"B25039_003"),
+                     areas = area,
+                     summary_level = "block group")
+
+ch.dur.get <- tidycensus::get_acs(geography = "block group",
+													 survey="acs5",
+													 state=j,
+													 county = c,
+													 year = endyr,
+													 output = "wide",
+													 variables = c("B25039_001", # Median Year Householder Moved Into Unit by Tenure
+															 	"B25039_002", # Median Year Householder Moved Into Unit by Tenure (Owner)
+															 	"B25039_003"), 
+													 keep_geo_vars = T, geometry = TRUE) %>%
+rename(MedYrMovedIn_BG = B25039_001E, # I'm not sure if I should substract this value from 2018
+				 MedYrRentMovedIn_BG = B25039_003E,
+				 MedYrOwnMovedIn_BG = B25039_002E)
+
+chelsea.dur <- merge(ch.dur.get, ch.MA.dur, by.x = 'NAME.y', by.y='NAME')
+
+
+
+tm_shape(chelsea.dur) + tm_polygons(c("MedYrMovedIn_BG","MedYrOwnMovedIn_BG"), style="quantile", palette=list("Greens","seq"), border.col = "darkgray", title=c("MedYrMovedIn","MedYrOwnMovedIn")) + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+
+
+```
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+tm_shape(chelsea.dur) + tm_polygons("MedYrRentMovedIn_BG", style="fixed", breaks=c(2012,2013,2014), palette="Blues", border.col = "darkgray", title="MedYrRentMovedIn") + tm_view(alpha = 0.85, basemaps = "Stamen.TonerLite") + tm_layout(legend.position = c("left","top"))
+```
+
+
+\
+
+### Cost Burdened Occupants
+
+
+\
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide', comment=""}
+
+##############################################   Cost Burdened Occupants   ##################################
+
+MA.CostBurdened.ch <- read_acs5year(year = endyr,
+                     states = j,
+                     table_contents = c("B25095_006", # Household income by selected monthly owner Costs as a percentage of household income
+														              # Less than $10,000 (30 to 34.9 percent)
+														              "B25095_007", # Less than $10,000 (35 to 39.9 percent)
+														              "B25095_008", # Less than $10,000 (40 to 49.9 percent)
+														              "B25095_009", # Less than $10,000 (50 percent or more)
+														              "B25095_015", # $10,000 to $19,999 (30 to 34.9 percent)
+														              "B25095_016", # $10,000 to $19,999 (35 to 39.9 percent)
+														              "B25095_017", # $10,000 to $19,999 (40 to 49.9 percent)
+														              "B25095_018", # $10,000 to $19,999 (50 percent or more)
+														              "B25095_024", # $20,000 to $34,999 (30 to 34.9 percent)
+														              "B25095_025", # $20,000 to $34,999 (35 to 39.9 percent)
+														              "B25095_026", # $20,000 to $34,999 (40 to 49.9 percent)
+														              "B25095_027", # $20,000 to $34,999 (50 percent or more)
+														              "B25095_033", # $35,000 to $49,999 (30 to 34.9 percent)
+														              "B25095_034", # $35,000 to $49,999 (35 to 39.9 percent)
+														              "B25095_035", # $35,000 to $49,999 (40 to 49.9 percent)
+														              "B25095_036", # $35,000 to $49,999 (50 percent or more)
+														              "B25095_042", # $50,000 to $74,999 (30 to 34.9 percent)
+														              "B25095_043", # $50,000 to $74,999 (35 to 39.9 percent)
+														              "B25095_044", # $50,000 to $74,999 (40 to 49.9 percent)
+														              "B25095_045", # $50,000 to $74,999 (50 percent or more)
+														              "B25095_051", # $75,000 to $99,999 (30 to 34.9 percent)
+														              "B25095_052", # $75,000 to $99,999 (35 to 39.9 percent)
+														              "B25095_053", # $75,000 to $99,999 (40 to 49.9 percent)
+														              "B25095_054", # $75,000 to $99,999 (50 percent or more)
+														              "B25095_060", # $100,000 to $149,999 (30 to 34.9 percent)
+														              "B25095_061", # $100,000 to $149,999 (35 to 39.9 percent)
+														              "B25095_062", # $100,000 to $149,999 (40 to 49.9 percent)
+														              "B25095_063", # $100,000 to $149,999 (50 percent or more)
+														              "B25095_069", # $150,000 or more (30 to 34.9 percent)
+														              "B25095_070", # $150,000 or more (35 to 39.9 percent)
+														              "B25095_071", # $150,000 or more (40 to 49.9 percent)
+														              "B25095_072", # $150,000 or more (50 percent or more)
+														              "B25095_001",
+														              "B25095_001"), # Total
+                     areas = area,
+                     summary_level = "tract")
+MA.CostBurdened.ch <-MA.CostBurdened.ch[MA.CostBurdened.ch$NAME == c("Census Tract 501.02, Washington County, Rhode Island","Census Tract 501.03, Washington County, Rhode Island", "Census Tract 501.04, Washington County, Rhode Island", "Census Tract 503.01, Washington County, Rhode Island", "Census Tract 503.02, Washington County, Rhode Island", "Census Tract 504.01, Washington County, Rhode Island", "Census Tract 504.02, Washington County, Rhode Island"),] %>%
+  rename(City = area) %>%
+  mutate(CostBurdened2 = B25095_006+B25095_007+B25095_008+B25095_009+B25095_015+B25095_016+B25095_017+B25095_018+
+	       B25095_024+B25095_025+B25095_026+B25095_027+B25095_033+B25095_034+B25095_035+B25095_036+B25095_042+B25095_043+B25095_044+B25095_045+B25095_051+B25095_052+B25095_053+B25095_054+B25095_060+B25095_061+B25095_062+B25095_063+B25095_069+B25095_070+B25095_071+B25095_072,
+         CostBurdened = sum(CostBurdened2),
+         CostBurdenedPer = CostBurdened/sum(B25095_001)) %>%
+	dplyr::select(City ,CostBurdened,CostBurdenedPer) %>%
+  left_join(Chelsea.MA, MA.CostBurdened.ch, by="City")
+MA.CostBurdened.ch <- MA.CostBurdened.ch[1,]
+Chelsea.MA <- cbind(MA.CostBurdened.ch)
+```
+* The number of households, who spend 30 percent or more on housing costs in `r Chelsea.MA$City` is `r Chelsea.MA$CostBurdened` which is `r (round(Chelsea.MA$CostBurdenedPer,3))*100`% of total number of households, who spend money on housing costs.\
+
+
+
+
+\
+
+### Local/State Policies + Assistance on Rent Deferment
+\
+
+* Low income and struggling families can apply for emergency financial help in Washington county. This program offers assistance with rent, utility or heating bills, food, medical and other costs in Washington County RI. There is both financial aid for bills (including rent, mortgages, deposits, housing and more) as well as charities that give out free stuff. This is based on donations but may be school supplies or clothes, food, furniture or even Christmas toys and so much more free stuff. (https://www.needhelppayingbills.com/html/washington_county_assistance_p11.html)
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
